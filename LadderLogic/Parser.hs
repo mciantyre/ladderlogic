@@ -81,8 +81,9 @@ parseParallelWire = between pplus pplus parseWire
     where pplus = char '+'
 
 parseParallelRung :: Parser Logic
-parseParallelRung = between bss bss parseParallelWire >>= andLogic
-    where bss = borders *> spaces
+parseParallelRung =
+    between borderspaces borderspaces parseParallelWire >>= andLogic
+    where borderspaces = borders *> spaces
 
 -- | Parse a normal rung
 -- example: ||------[INPUT]--[/NOT]--(OUTPUT)-||
