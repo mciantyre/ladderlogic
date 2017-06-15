@@ -7,6 +7,7 @@ import LadderLogic.Parser
 import LadderLogic.Types
 
 import Test.Hspec
+import Text.RawString.QQ
 import Text.Trifecta
 
 maybeSuccess :: Result a -> Maybe a
@@ -16,6 +17,30 @@ maybeSuccess _ = Nothing
 testParse :: Parser a -> String -> Maybe a
 testParse p s = let m = parseString p mempty s
                         in maybeSuccess m
+
+-- Used in a comment parser test below
+multilineComment :: String
+multilineComment = [r|
+!! This is a multiline comment !!
+!! It always needs to be bookended by !!
+|]
+
+unrelatedRungs :: String
+unrelatedRungs = [r|
+
+!! Here are some comments that should be ignored !!
+||----[/A]----(B)--------||
+||-[C]---------------(D)-||
+
+|]
+
+diagramWithOring :: String
+diagramWithOring = [r|
+!! Comment !!
+||----[A]---+--[B]--[C]--+---(D)--||
+||          +----[E]-----+        ||
+
+|]
 
 spec =
   describe "Parser" $ do
@@ -78,70 +103,35 @@ spec =
 
     describe "Comment parser" $ do
       it "returns the contents of the comment" $ do
-        testParse skipComments "!! Hello world !!" `shouldBe` Just (" Hello world ")
+        testParse parseComments "!! Hello world !!" `shouldBe` Just ([" Hello world "])
 
       it "skips comments and parses input" $ do
-        testParse (skipComments >> parseInput) "!! Hello world !![Hello]" `shouldBe` Just (Input "Hello")
+        testParse (parseComments >> parseInput) "!! Hello world !![Hello]" `shouldBe` Just (Input "Hello")
       
       it "fails to skip invalid comments" $ do
-        testParse (skipComments >> parseInput) "## This fails ##[Hello]" `shouldBe` Nothing
+        testParse (parseComments >> parseInput) "## This fails ## " `shouldBe` Nothing
 
-    describe "Rung parser" $ do
-      it "parsers a rung of one input" $ do
-        let rung = "||--------[INPUT]----||"
-            actual = testParse parseRung rung 
-        actual `shouldBe` Just (Input "INPUT")
-
-      it "parses a rung of one input and one output" $ do
-        let rung = "||--[/INPUT]---(OUTPUT)---||"
-        testParse parseRung rung `shouldBe` Just (And (Not (Input "INPUT")) (Output "OUTPUT"))
-
-      it "parses a rung of two inputs" $ do
-        let rung = "||----[/A]----[B]---||"
-            actual = testParse parseRung rung
-        actual `shouldBe` Just (And (Not (Input "A")) (Input "B"))
-
-      it "parses a rung of three inputs" $ do
-        let rung = "||--[A]--[B]---------------[/C]-||"
-            actual = testParse parseRung rung
-            ab = And (Input "A") (Input "B")
-            c = Not (Input "C")
-            expected = Just (And ab c)
+      it "parses multiline comments" $ do
+        let expected = Just ([" This is a multiline comment ", " It always needs to be bookended by "])
+            actual = testParse parseComments multilineComment
+        actual `shouldBe` expected
+    
+    describe "Ladder parser" $ do
+      it "parses a simple ladder diagram" $ do
+        let expected = Just ([And (Not (Input "A")) (Output "B")])
+            actual = testParse parseLadder "||---[/A]---(B)---||"
         actual `shouldBe` expected
 
-      it "parses a run of three inputs and one output" $ do
-        let rung = "||--[A]-[/B]--------[C]-------------------------(D)-----||"
-            actual = testParse parseRung rung
-            ab = And (Input "A") (Not (Input "B"))
-            abc = And ab (Input "C")
-            abcd = And abc (Output "D")
-            expected = Just abcd
+      it "parses a ladder diagram with unrelated rungs" $ do
+        let expected = Just ([And (Not (Input "A")) (Output "B"),
+                              And (Input "C") (Output "D")])
+            actual = testParse parseLadder unrelatedRungs
         actual `shouldBe` expected
 
-      it "fails to parse a rung of no inputs or outputs" $ do
-        let rung = "||-----------||"
-        testParse parseRung rung `shouldBe` Nothing
-      
-      it "fails to parse an invalid rung" $ do
-        let rung = "|----[A]---||" -- missing first '|'
-        testParse parseRung rung `shouldBe` Nothing
-
-      it "fails to parse just wires" $ do
-        let rung = "----[A]---(B)----" -- missing first '|'
-        testParse parseRung rung `shouldBe` Nothing
-
-      it "parses juxtaposed elements" $ do
-        let rung = "||----[A](B)---||"
-        testParse parseRung rung `shouldBe` Just (And (Input "A") (Output "B"))
-
-      it "fails to parse elements next to the rung delimiter" $ do
-        let rung = "||[/A]-(B)||"
-        testParse parseRung rung `shouldBe` Just (And (Not (Input "A")) (Output "B"))
-
-      it "parses empty rungs" $ do
-        let rung = "||                    ||"
-        testParse parseEmptyRung rung `shouldBe` Just ()
-
-      it "parses empty rungs with vertical connectors" $ do
-        let rung = "||     |    | |  ||"
-        testParse parseEmptyRung rung `shouldBe` Just ()
+      it "parses a ladder with ORing wires" $ do
+        let bc = And (Input "B") (Input "C")
+            ebc = Or (Input "E") bc
+            aebc = And (Input "A") ebc
+            expected = Just [And aebc (Output "D")]
+            actual = testParse parseLadder diagramWithOring
+        actual `shouldBe` expected
