@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
 module LadderLogic.Parser where
 
 import LadderLogic.Types
@@ -52,10 +50,10 @@ parseComments =
     skipEOL
     return comment
 
--- | Rungs are delimited with || on either side
--- example: ||-----[IN]----(OUT)--||
+-- | Rungs are delimited with ## on either side
+-- example: ##-----[IN]----(OUT)--##
 borders :: Parser Char
-borders = char '|' *> char '|'
+borders = char '#' *> char '#'
 
 skipEOL :: Parser ()
 skipEOL = skipMany (oneOf "\n")
@@ -133,8 +131,11 @@ parseSegment = try parseSeriesSegment <|> parseParallelSegment
 parseDanglingSegments :: Parser [Segment]
 parseDanglingSegments = do
   borders
-  manyTill danglingSegment (try borders)
-  where danglingSegment = between spaces spaces parseParallelSegment
+  sb
+  segs <- many (parseParallelSegment <* sb)
+  borders
+  return segs
+  where sb = skipMany (oneOf " |")
 
 -- | Parse one rung. A rung consists of the main wire with zero or more
 -- dangling segments

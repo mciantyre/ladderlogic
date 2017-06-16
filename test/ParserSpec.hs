@@ -29,17 +29,17 @@ unrelatedRungs :: String
 unrelatedRungs = [r|
 
 !! Here are some comments that should be ignored !!
-||----[/A]----(B)--------||
-||-[C]---------------(D)-||
+##----[/A]----(B)--------##
+##-[C]---------------(D)-##
 
 |]
 
 diagramWithOring :: String
 diagramWithOring = [r|
 !! Comment !!
-||----[A]---+--[B]--[C]--+---(D)--||
-||          +----[E]-----+        ||
-
+##----[A]---+--[B]--[C]--+---(D)--##
+##          |            |        ##
+##          +----[E]-----+        ##
 |]
 
 spec =
@@ -119,7 +119,7 @@ spec =
     describe "Ladder parser" $ do
       it "parses a simple ladder diagram" $ do
         let expected = Just ([And (Not (Input "A")) (Output "B")])
-            actual = testParse parseLadder "||---[/A]---(B)---||"
+            actual = testParse parseLadder "##---[/A]---(B)---##"
         actual `shouldBe` expected
 
       it "parses a ladder diagram with unrelated rungs" $ do
