@@ -18,6 +18,7 @@ library
                        LadderLogic.Parser
   build-depends:       base >= 4.7 && < 5
                      , bytestring
+                     , containers
                      , mtl
                      , transformers
                      , trifecta
@@ -36,6 +37,7 @@ test-suite ladderlogic-test
   hs-source-dirs:      test
   main-is:             Spec.hs
   other-modules:       ParserSpec
+                       TypesSpec
   build-depends:       base
                      , ladderlogic
                      , hspec

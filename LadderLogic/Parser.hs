@@ -1,13 +1,14 @@
 module LadderLogic.Parser where
 
-import LadderLogic.Types
-import Control.Applicative
-import Data.Function (on)
-import Data.Functor (fmap)
-import Data.Int
-import Data.List
-import Text.Trifecta
-import Text.Trifecta.Delta
+import            LadderLogic.Types
+import            Control.Applicative
+import            Data.Function             (on)
+import            Data.Functor              (fmap)
+import            Data.Int
+import            Data.List
+import qualified  Data.Map.Strict as Map
+import            Text.Trifecta
+import            Text.Trifecta.Delta
 
 -- | The only special characters to be used in tag names
 special :: Parser Char
@@ -146,15 +147,22 @@ parseRung = do
   dangle <- many (try parseDanglingSegments <* skipEOL)
   return $ seg ++ (concat dangle)
 
+-- | 
+groupSegmentsBy :: Ord a => (Segment -> a) -> [Segment] -> [[Segment]]
+groupSegmentsBy f segments = 
+  let kvs = map (\s -> (f s, s)) segments
+      groups = Map.fromListWith (++) [(k, [v]) | (k, v) <- kvs]
+  in map (\kv -> snd kv) (Map.toList groups)
+
 -- | Apply the ORing logic to parallel elements of the rung
 orLogic :: [Segment] -> Parser Logic
 orLogic segments = 
-  let grouped = groupBy samePosition segments
+  let grouped = groupSegmentsBy distance segments
       ors = map oring grouped
   in return $ foldl And (head ors) (tail ors)
   where oring segs = case segs of
-                (s:[]) -> intoLogic s
-                (s:ss) -> foldl Or (intoLogic s) (map intoLogic ss)
+              (x:[]) -> intoLogic x
+              (x:xs) -> foldl Or (intoLogic x) (map intoLogic xs)
 
 -- | Parse the whole diagram
 parseLadder :: Parser [Logic]

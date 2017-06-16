@@ -17,7 +17,20 @@ data Logic
     | And Logic Logic       -- ^ ANDing of two logic blocks
     | Or Logic Logic        -- ^ ORing of two logic blocks
     | Not Logic             -- ^ NOTing a logic block
-    deriving (Show, Eq)
+    deriving (Show)
+
+instance Eq Logic where
+    (Input x) == (Input y)      = x == y
+    (Output x) == (Output y)    = x == y
+    (Not x) == (Not y)          = x == y
+
+    (And r s) == (And x y) =
+        ((r == x) || (r == y)) && ((s == x) || (s == y))
+
+    (Or r s) == (Or x y) =
+        ((r == x) || (r == y)) && ((s == x) || (s == y))
+
+    (==) _ _ = False
 
 -- | A program is a collection of rungs run under some stateful monad
 newtype ProgramT m a
