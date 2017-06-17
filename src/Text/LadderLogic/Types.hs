@@ -1,8 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module LadderLogic.Types
-( Logic(..)
-) where
+module Text.LadderLogic.Types where
 
 import Control.Applicative
 import Control.Monad

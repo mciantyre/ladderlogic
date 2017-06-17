@@ -2,7 +2,7 @@
 
 module TypesSpec where
 
-import LadderLogic.Types
+import Text.LadderLogic.Types
 
 import Test.Hspec
 

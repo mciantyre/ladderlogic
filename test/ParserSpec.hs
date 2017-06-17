@@ -3,8 +3,8 @@
 
 module ParserSpec where
 
-import LadderLogic.Parser
-import LadderLogic.Types
+import Text.LadderLogic.Parser
+import Text.LadderLogic.Types
 
 import Test.Hspec
 import Text.RawString.QQ

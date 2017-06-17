@@ -14,8 +14,9 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     LadderLogic.Types
-                       LadderLogic.Parser
+  exposed-modules:     Text.LadderLogic
+                       Text.LadderLogic.Types
+                       Text.LadderLogic.Parser
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , containers
@@ -23,6 +24,7 @@ library
                      , transformers
                      , trifecta
   default-language:    Haskell2010
+  hs-source-dirs:         src
 
 executable ladderlogic-exe
   hs-source-dirs:      app

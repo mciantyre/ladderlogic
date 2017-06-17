@@ -1,6 +1,7 @@
-module LadderLogic.Parser where
+module Text.LadderLogic.Parser where
 
-import            LadderLogic.Types
+import            Text.LadderLogic.Types
+
 import            Control.Applicative
 import            Data.Function             (on)
 import            Data.Functor              (fmap)
