@@ -14,8 +14,8 @@ maybeSuccess :: Result a -> Maybe a
 maybeSuccess (Success x) = Just x
 maybeSuccess _ = Nothing
 
-testParse :: Parser a -> String -> Maybe a
-testParse p s = let m = parseString p mempty s
+testMaybe :: Parser a -> String -> Maybe a
+testMaybe p s = let m = parseString p mempty s
                         in maybeSuccess m
 
 -- Used in a comment parser test below
@@ -29,103 +29,131 @@ unrelatedRungs :: String
 unrelatedRungs = [r|
 
 !! Here are some comments that should be ignored !!
-##----[/A]----(B)--------##
-##-[C]---------------(D)-##
+##----[/A]----(B)--------------------------------##
+##-[C]---------------------------------------(D)-##
 
 |]
 
 diagramWithOring :: String
 diagramWithOring = [r|
-!! Comment !!
+!! Comment                        !!
 ##----[A]---+--[B]--[C]--+---(D)--##
 ##          |            |        ##
 ##          +----[E]-----+        ##
+|]
+
+multipleRungs :: String
+multipleRungs = [r|
+!!   A multi-rung program          !!
+##---[/A]--+---[B]---------+--(D)--##
+##         |               |       ##
+##         +----[/C]-------+       ##
+##                                 ##
+##------------[/F]-------(G)-------##
+|]
+
+multipleOrs :: String
+multipleOrs = [r|
+!! A program with multiple OR wires !!
+##---[A]---+-------[B]-----+---(D)--##
+##         |               |        ##
+##         +-------[C]-----+        ##
+##         |               |        ##
+##         +-------[E]-----+        ##
 |]
 
 spec =
   describe "Parser" $ do
     describe "Input parser" $ do
       it "parses input name from brackets" $ do
-        (Just (Input "INPUT")) `shouldBe` (testParse parseInput "[INPUT]")
+        (Just (Input "INPUT")) `shouldBe` (testMaybe parseInput "[INPUT]")
       
       it "parses the NOT indicator ('/') from brackets" $ do
         let expected = Just (Not (Input "INPUT"))
-            actual = testParse parseInput "[/INPUT]"
+            actual = testMaybe parseInput "[/INPUT]"
         actual `shouldBe` expected
 
       it "does not parse empty identifiers" $ do
-        Nothing `shouldBe` testParse parseInput "[/]"
+        Nothing `shouldBe` testMaybe parseInput "[/]"
 
       it "parses numbers in identifiers" $ do
-        testParse parseInput "[1234567]" `shouldBe` Just (Input "1234567")
+        testMaybe parseInput "[1234567]" `shouldBe` Just (Input "1234567")
       
       it "does not parse letters and numbers in identifiers" $ do
-        testParse parseInput "[ABC123]" `shouldBe` Just (Input "ABC123")
+        testMaybe parseInput "[ABC123]" `shouldBe` Just (Input "ABC123")
 
       it "does not parse spaces in identifiers" $ do
-        testParse parseInput "[ABC DEF]" `shouldBe` Nothing
+        testMaybe parseInput "[ABC DEF]" `shouldBe` Nothing
 
       it "parses - (dash) as a delimiter" $ do
-        Just (Not (Input "AB-1c-5d")) `shouldBe` testParse parseInput "[/AB-1c-5d]"
+        Just (Not (Input "AB-1c-5d")) `shouldBe` testMaybe parseInput "[/AB-1c-5d]"
 
       it "parses _ (underscore) as a delimiter" $ do
-        testParse parseInput "[/AB_1c_5d]" `shouldBe` Just (Not (Input "AB_1c_5d"))
+        testMaybe parseInput "[/AB_1c_5d]" `shouldBe` Just (Not (Input "AB_1c_5d"))
 
       it "does not parse a valid output" $ do
-        testParse parseInput "(OUTPUT)" `shouldBe` Nothing
+        testMaybe parseInput "(OUTPUT)" `shouldBe` Nothing
 
     describe "Output parser" $ do
       it "parses the output name from parentheses" $ do
         let expected = Just (Output "OUTPUT")
-            actual = testParse parseOutput "(OUTPUT)"
+            actual = testMaybe parseOutput "(OUTPUT)"
         actual `shouldBe` expected
 
       it "does not parse empty identifiers" $ do
-        Nothing `shouldBe` testParse parseOutput "()"
+        Nothing `shouldBe` testMaybe parseOutput "()"
 
       it "parses numbers in identifiers" $ do
-        testParse parseOutput "(1234567)" `shouldBe` Just (Output "1234567")
+        testMaybe parseOutput "(1234567)" `shouldBe` Just (Output "1234567")
 
       it "does not parse letters and numbers in identifiers" $ do
-        testParse parseOutput "(ABC123)" `shouldBe` Just (Output "ABC123")
+        testMaybe parseOutput "(ABC123)" `shouldBe` Just (Output "ABC123")
 
       it "does not parse spaces in identifiers" $ do
-        Nothing `shouldBe` testParse parseOutput "(ABC DEF)"
+        Nothing `shouldBe` testMaybe parseOutput "(ABC DEF)"
 
       it "parses - (dash) as a delimiter" $ do
-        testParse parseOutput "(AB-1c-5d)" `shouldBe` Just (Output "AB-1c-5d")
+        testMaybe parseOutput "(AB-1c-5d)" `shouldBe` Just (Output "AB-1c-5d")
       
       it "parses _ (underscore) as a delimiter" $ do
-        testParse parseOutput "(AB_1c_5d)" `shouldBe` Just (Output "AB_1c_5d")
+        testMaybe parseOutput "(AB_1c_5d)" `shouldBe` Just (Output "AB_1c_5d")
 
       it "does not parse a valid input" $ do
-        testParse parseOutput "[INPUT]" `shouldBe` Nothing
+        testMaybe parseOutput "[INPUT]" `shouldBe` Nothing
 
     describe "Comment parser" $ do
       it "returns the contents of the comment" $ do
-        testParse parseComments "!! Hello world !!" `shouldBe` Just ([" Hello world "])
+        testMaybe parseComments "!! Hello world !!" `shouldBe` Just ([" Hello world "])
 
       it "skips comments and parses input" $ do
-        testParse (parseComments >> parseInput) "!! Hello world !![Hello]" `shouldBe` Just (Input "Hello")
+        testMaybe (parseComments >> parseInput) "!! Hello world !![Hello]" `shouldBe` Just (Input "Hello")
       
       it "fails to skip invalid comments" $ do
-        testParse (parseComments >> parseInput) "## This fails ## " `shouldBe` Nothing
+        testMaybe (parseComments >> parseInput) "## This fails ## " `shouldBe` Nothing
 
       it "parses multiline comments" $ do
         let expected = Just ([" This is a multiline comment ", " It always needs to be bookended by "])
-            actual = testParse parseComments multilineComment
+            actual = testMaybe parseComments multilineComment
         actual `shouldBe` expected
     
     describe "Ladder parser" $ do
       it "parses a simple ladder diagram" $ do
         let expected = Just ([And (Not (Input "A")) (Output "B")])
-            actual = testParse parseLadder "##---[/A]---(B)---##"
+            actual = testMaybe parseLadder "##---[/A]---(B)---##"
         actual `shouldBe` expected
+
+      it "parses a valid diagram with +s in the middle" $ do
+        let ladder = "##--[A]---+--[B]--++---[C]---+----(D)--##"
+            ab = And (Input "A") (Input "B")
+            abc = And ab (Input "C")
+            expceted = Just [And abc (Output "D")]
+            actual = testMaybe parseLadder ladder
+        actual `shouldBe` expceted
 
       it "parses a ladder diagram with unrelated rungs" $ do
         let expected = Just ([And (Not (Input "A")) (Output "B"),
                               And (Input "C") (Output "D")])
-            actual = testParse parseLadder unrelatedRungs
+            actual = testMaybe parseLadder unrelatedRungs
         actual `shouldBe` expected
 
       it "parses a ladder with ORing wires" $ do
@@ -133,5 +161,22 @@ spec =
             ebc = Or (Input "E") bc
             aebc = And (Input "A") ebc
             expected = Just [And aebc (Output "D")]
-            actual = testParse parseLadder diagramWithOring
+            actual = testMaybe parseLadder diagramWithOring
+        actual `shouldBe` expected
+
+      it "parses a multi-rung ladder program" $ do
+        let bc = Or (Not (Input "C")) (Input "B")
+            abc = And (Not (Input "A")) bc
+            rung1 = And (abc) (Output "D")
+            rung2 = And (Not (Input "F")) (Output "G")
+            expected = Just [rung1, rung2]
+            actual = testMaybe parseLadder multipleRungs
+        actual `shouldBe` expected
+
+      it "parses a ladder with multiple OR wires" $ do
+        let ec = Or (Input "E") (Input "C")
+            bce = Or ec (Input "B")
+            abce = And (Input "A") bce
+            expected = Just [And abce (Output "D")]
+            actual = testMaybe parseLadder multipleOrs
         actual `shouldBe` expected

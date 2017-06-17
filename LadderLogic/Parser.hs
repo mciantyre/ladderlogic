@@ -84,30 +84,25 @@ andLogic logics =
 -- | A segment is a ladder logic statement that has a start and end position
 -- in the text
 newtype Segment
-  = Segment { runSegment :: (Logic, (Position, Position))}
+  = Segment { getSegment :: (Logic, (Position, Position))}
   deriving (Show)
 
 type Position = Int64
 
 -- | The start of the segment
 start :: Segment -> Position
-start = fst . snd . runSegment
+start = fst . snd . getSegment
 
 -- | The end of the segment
 end :: Segment -> Position
-end = snd . snd . runSegment
+end = snd . snd . getSegment
 
--- | The distance is the difference between the start and end
-distance :: Segment -> Position
-distance segment = (end segment) - (start segment)
+pos :: Segment -> (Position, Position)
+pos seg = (start seg, end seg)
 
 -- Grab the logic
 intoLogic :: Segment -> Logic
-intoLogic = fst . runSegment
-
--- | Check if the segments are at the same position
-samePosition :: Segment -> Segment -> Bool
-samePosition a b = (start a == start b) && (end a == end b)
+intoLogic = fst . getSegment
 
 -- | Acquire the start and end position of a ladder logic parser,
 -- and create a segment. We can upgrade a wire parser into a segment parser
@@ -126,7 +121,7 @@ parseParallelSegment :: Parser Segment
 parseParallelSegment = makeSegment parseParallelWire
 
 parseSegment :: Parser Segment
-parseSegment = try parseSeriesSegment <|> parseParallelSegment
+parseSegment = try parseParallelSegment <|> parseSeriesSegment
 
 -- | A dangling segment hangs off of the main wire to create OR behavior
 parseDanglingSegments :: Parser [Segment]
@@ -147,7 +142,6 @@ parseRung = do
   dangle <- many (try parseDanglingSegments <* skipEOL)
   return $ seg ++ (concat dangle)
 
--- | 
 groupSegmentsBy :: Ord a => (Segment -> a) -> [Segment] -> [[Segment]]
 groupSegmentsBy f segments = 
   let kvs = map (\s -> (f s, s)) segments
@@ -157,9 +151,9 @@ groupSegmentsBy f segments =
 -- | Apply the ORing logic to parallel elements of the rung
 orLogic :: [Segment] -> Parser Logic
 orLogic segments = 
-  let grouped = groupSegmentsBy distance segments
+  let grouped = groupSegmentsBy pos segments
       ors = map oring grouped
-  in return $ foldl And (head ors) (tail ors)
+  in andLogic ors
   where oring segs = case segs of
               (x:[]) -> intoLogic x
               (x:xs) -> foldl Or (intoLogic x) (map intoLogic xs)
