@@ -16,22 +16,22 @@ special :: Parser Char
 special = oneOf "_-+"
 
 -- | The parser for a tag allows for letters, digits, and the special characters
-parseTag :: Parser [Char]
-parseTag = some (alphaNum <|> special)
+tag :: Parser [Char]
+tag = some (alphaNum <|> special)
 
 -- | Map the Logic contructor into the parser
-parseAs :: (String -> Logic) -> Parser Logic
-parseAs = flip fmap parseTag
+asLogic :: (String -> Logic) -> Parser Logic
+asLogic = flip fmap tag
 
 -- | Parse an input tag
-parseInput :: Parser Logic
-parseInput = try (brackets p) <|> between (char '[' *> char '/') (char ']') np
-  where p  = parseAs Input
-        np = parseAs (Not . Input)
+input :: Parser Logic
+input = try (brackets p) <|> between (char '[' *> char '/') (char ']') np
+  where p  = asLogic Input
+        np = asLogic (Not . Input)
 
 -- | Parse an output tag
-parseOutput :: Parser Logic
-parseOutput = parens (parseAs Output)
+output :: Parser Logic
+output = parens (asLogic Output)
 
 -- | Skip the wire symbols connectors
 wires :: Parser ()
@@ -43,8 +43,8 @@ commentDelimiter :: Parser Char
 commentDelimiter = char '!' *> char '!'
 
 -- | Parse comments in between !!s
-parseComments :: Parser [String]
-parseComments = 
+comments :: Parser [String]
+comments = 
   some $ do
     skipEOL
     commentDelimiter
@@ -62,14 +62,13 @@ skipEOL = skipMany (oneOf "\n")
 
 -- | Parse the contents of a wire
 -- example : --[B]--(C)---
-parseSeriesWire :: Parser Logic
-parseSeriesWire =
-  some (between wires wires (parseInput <|> parseOutput)) >>= andLogic
+series :: Parser Logic
+series = some (between wires wires (input <|> output)) >>= andLogic
 
 -- | A parallel wire is a normal wire bookended with +s
 -- example : +--[B]--[C]--+
-parseParallelWire :: Parser Logic
-parseParallelWire = between plus plus parseSeriesWire
+parallel :: Parser Logic
+parallel = between plus plus series
   where plus = char '+'
 
 -- | Apply the ANDing logic to sequential elements on the wire
@@ -78,7 +77,7 @@ andLogic logics =
   case logics of
     (x:[]) -> return x
     (x:xs) -> return $ foldl And x xs
-    []     -> fail "LadderLogic.Parser.andLogic received empty input list"
+    []     -> fail "Text.LadderLogic.Parser.andLogic received empty input list"
 
 {- The segment interface is internal -}
 
@@ -116,10 +115,10 @@ makeSegment parser = do
   return $ Segment (logic, (column d0, column d1))
 
 parseSeriesSegment :: Parser Segment
-parseSeriesSegment = makeSegment parseSeriesWire
+parseSeriesSegment = makeSegment series
 
 parseParallelSegment :: Parser Segment
-parseParallelSegment = makeSegment parseParallelWire
+parseParallelSegment = makeSegment parallel
 
 parseSegment :: Parser Segment
 parseSegment = try parseParallelSegment <|> parseSeriesSegment
@@ -163,7 +162,7 @@ orLogic segments =
 parseLadder :: Parser [Logic]
 parseLadder = do
   skipEOL
-  skipMany parseComments
+  skipMany comments
   logics <- some (parseRung >>= orLogic)
   skipEOL
   return logics

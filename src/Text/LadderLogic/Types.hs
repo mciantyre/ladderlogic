@@ -1,12 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
 module Text.LadderLogic.Types where
-
-import Control.Applicative
-import Control.Monad
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.State
-import Data.Functor
 
 -- | Ladder logic... uh... logic!
 data Logic
@@ -33,20 +25,3 @@ instance Eq Logic where
     ((r == x) && (s == y)) || ((r == y) && (s == x))
 
   (==) _ _ = False
-
--- | A program is a collection of rungs run under some stateful monad
-newtype ProgramT m a
-  = ProgramT { runProgramT :: StateT [Logic] m a }
-  deriving (Functor, Applicative, Monad)
-
--- | Our program is a monad transformer
-instance MonadTrans ProgramT where
-  lift = ProgramT . lift
-
--- | Our concrete program performs IO
--- during testing, it **wouldn't** perform IO, so we'd replace with Identity
-type Program = ProgramT IO
-
--- | Run the ladder logic program
-runLadderProgram :: Program a -> [Logic] -> IO (a, [Logic])
-runLadderProgram = runStateT . runProgramT

@@ -66,74 +66,74 @@ spec =
   describe "Parser" $ do
     describe "Input parser" $ do
       it "parses input name from brackets" $ do
-        (Just (Input "INPUT")) `shouldBe` (testMaybe parseInput "[INPUT]")
+        (Just (Input "INPUT")) `shouldBe` (testMaybe input "[INPUT]")
       
       it "parses the NOT indicator ('/') from brackets" $ do
         let expected = Just (Not (Input "INPUT"))
-            actual = testMaybe parseInput "[/INPUT]"
+            actual = testMaybe input "[/INPUT]"
         actual `shouldBe` expected
 
       it "does not parse empty identifiers" $ do
-        Nothing `shouldBe` testMaybe parseInput "[/]"
+        Nothing `shouldBe` testMaybe input "[/]"
 
       it "parses numbers in identifiers" $ do
-        testMaybe parseInput "[1234567]" `shouldBe` Just (Input "1234567")
+        testMaybe input "[1234567]" `shouldBe` Just (Input "1234567")
       
       it "does not parse letters and numbers in identifiers" $ do
-        testMaybe parseInput "[ABC123]" `shouldBe` Just (Input "ABC123")
+        testMaybe input "[ABC123]" `shouldBe` Just (Input "ABC123")
 
       it "does not parse spaces in identifiers" $ do
-        testMaybe parseInput "[ABC DEF]" `shouldBe` Nothing
+        testMaybe input "[ABC DEF]" `shouldBe` Nothing
 
       it "parses - (dash) as a delimiter" $ do
-        Just (Not (Input "AB-1c-5d")) `shouldBe` testMaybe parseInput "[/AB-1c-5d]"
+        Just (Not (Input "AB-1c-5d")) `shouldBe` testMaybe input "[/AB-1c-5d]"
 
       it "parses _ (underscore) as a delimiter" $ do
-        testMaybe parseInput "[/AB_1c_5d]" `shouldBe` Just (Not (Input "AB_1c_5d"))
+        testMaybe input "[/AB_1c_5d]" `shouldBe` Just (Not (Input "AB_1c_5d"))
 
       it "does not parse a valid output" $ do
-        testMaybe parseInput "(OUTPUT)" `shouldBe` Nothing
+        testMaybe input "(OUTPUT)" `shouldBe` Nothing
 
     describe "Output parser" $ do
       it "parses the output name from parentheses" $ do
         let expected = Just (Output "OUTPUT")
-            actual = testMaybe parseOutput "(OUTPUT)"
+            actual = testMaybe output "(OUTPUT)"
         actual `shouldBe` expected
 
       it "does not parse empty identifiers" $ do
-        Nothing `shouldBe` testMaybe parseOutput "()"
+        Nothing `shouldBe` testMaybe output "()"
 
       it "parses numbers in identifiers" $ do
-        testMaybe parseOutput "(1234567)" `shouldBe` Just (Output "1234567")
+        testMaybe output "(1234567)" `shouldBe` Just (Output "1234567")
 
       it "does not parse letters and numbers in identifiers" $ do
-        testMaybe parseOutput "(ABC123)" `shouldBe` Just (Output "ABC123")
+        testMaybe output "(ABC123)" `shouldBe` Just (Output "ABC123")
 
       it "does not parse spaces in identifiers" $ do
-        Nothing `shouldBe` testMaybe parseOutput "(ABC DEF)"
+        Nothing `shouldBe` testMaybe output "(ABC DEF)"
 
       it "parses - (dash) as a delimiter" $ do
-        testMaybe parseOutput "(AB-1c-5d)" `shouldBe` Just (Output "AB-1c-5d")
+        testMaybe output "(AB-1c-5d)" `shouldBe` Just (Output "AB-1c-5d")
       
       it "parses _ (underscore) as a delimiter" $ do
-        testMaybe parseOutput "(AB_1c_5d)" `shouldBe` Just (Output "AB_1c_5d")
+        testMaybe output "(AB_1c_5d)" `shouldBe` Just (Output "AB_1c_5d")
 
       it "does not parse a valid input" $ do
-        testMaybe parseOutput "[INPUT]" `shouldBe` Nothing
+        testMaybe output "[INPUT]" `shouldBe` Nothing
 
     describe "Comment parser" $ do
       it "returns the contents of the comment" $ do
-        testMaybe parseComments "!! Hello world !!" `shouldBe` Just ([" Hello world "])
+        testMaybe comments "!! Hello world !!" `shouldBe` Just ([" Hello world "])
 
       it "skips comments and parses input" $ do
-        testMaybe (parseComments >> parseInput) "!! Hello world !![Hello]" `shouldBe` Just (Input "Hello")
+        testMaybe (comments >> input) "!! Hello world !![Hello]" `shouldBe` Just (Input "Hello")
       
       it "fails to skip invalid comments" $ do
-        testMaybe (parseComments >> parseInput) "## This fails ## " `shouldBe` Nothing
+        testMaybe (comments >> input) "## This fails ## " `shouldBe` Nothing
 
       it "parses multiline comments" $ do
         let expected = Just ([" This is a multiline comment ", " It always needs to be bookended by "])
-            actual = testMaybe parseComments multilineComment
+            actual = testMaybe comments multilineComment
         actual `shouldBe` expected
     
     describe "Ladder parser" $ do
