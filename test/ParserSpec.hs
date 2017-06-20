@@ -143,7 +143,7 @@ spec =
         actual `shouldBe` expected
 
       it "parses a valid diagram with +s in the middle" $ do
-        let ladder = "##--[A]---+--[B]--++---[C]---+----(D)--##"
+        let ladder = "##--[A]---+--[B]--+---[C]---+----(D)--##"
             ab = And (Input "A") (Input "B")
             abc = And ab (Input "C")
             expceted = Just [And abc (Output "D")]

@@ -62,14 +62,8 @@ skipEOL = skipMany (oneOf "\n")
 
 -- | Parse the contents of a wire
 -- example : --[B]--(C)---
-series :: Parser Logic
-series = some (between wires wires (input <|> output)) >>= andLogic
-
--- | A parallel wire is a normal wire bookended with +s
--- example : +--[B]--[C]--+
-parallel :: Parser Logic
-parallel = between plus plus series
-  where plus = char '+'
+insandouts :: Parser Logic
+insandouts = some (between wires wires (input <|> output)) >>= andLogic
 
 -- | Apply the ANDing logic to sequential elements on the wire
 andLogic :: [Logic] -> Parser Logic
@@ -114,33 +108,32 @@ makeSegment parser = do
   d1    <- position
   return $ Segment (logic, (column d0, column d1))
 
-parseSeriesSegment :: Parser Segment
-parseSeriesSegment = makeSegment series
-
-parseParallelSegment :: Parser Segment
-parseParallelSegment = makeSegment parallel
-
-parseSegment :: Parser Segment
-parseSegment = try parseParallelSegment <|> parseSeriesSegment
+parseMainSegment :: Parser [Segment]
+parseMainSegment = do
+  borders
+  many $ (makeSegment insandouts) <* (char '+' <|> borders)
 
 -- | A dangling segment hangs off of the main wire to create OR behavior
 parseDanglingSegments :: Parser [Segment]
 parseDanglingSegments = do
   borders
   sb
-  segs <- many (parseParallelSegment <* sb)
+  segs <- many (dangling <* sb)
   borders
   return segs
   where sb = skipMany (oneOf " |")
+        dangling = between plus plus (makeSegment insandouts)
+        plus = char '+'
+
 
 -- | Parse one rung. A rung consists of the main wire with zero or more
 -- dangling segments
 parseRung :: Parser [Segment]
 parseRung = do
-  seg <- between borders borders (some parseSegment)
+  segs <- parseMainSegment
   skipEOL
   dangle <- many (try parseDanglingSegments <* skipEOL)
-  return $ seg ++ (concat dangle)
+  return $ segs ++ (concat dangle)
 
 groupSegmentsBy :: Ord a => (Segment -> a) -> [Segment] -> [[Segment]]
 groupSegmentsBy f segments = 
@@ -156,7 +149,7 @@ orLogic segments =
   in andLogic ors
   where oring segs = case segs of
               (x:[]) -> intoLogic x
-              (x:xs) -> foldl Or (intoLogic x) (map intoLogic xs)
+              (x:xs) -> foldl Or (intoLogic x) (map intoLogic xs) 
 
 -- | Parse the whole diagram
 parseLadder :: Parser [Logic]
@@ -166,4 +159,3 @@ parseLadder = do
   logics <- some (parseRung >>= orLogic)
   skipEOL
   return logics
-
