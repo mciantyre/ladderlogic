@@ -7,7 +7,9 @@ import            Data.Function             (on)
 import            Data.Functor              (fmap)
 import            Data.Int
 import            Data.List
+import qualified  Data.List.NonEmpty as NEL
 import qualified  Data.Map.Strict as Map
+import            Data.Ord
 import            Text.Trifecta
 import            Text.Trifecta.Delta
 
@@ -63,15 +65,24 @@ skipEOL = skipMany (oneOf "\n")
 -- | Parse the contents of a wire
 -- example : --[B]--(C)---
 insandouts :: Parser Logic
-insandouts = some (between wires wires (input <|> output)) >>= andLogic
+insandouts =
+  fmap NEL.fromList (some (between wires wires (input <|> output)))
+    >>= (foldParse foldAnd)
+
+foldLogic :: (Logic -> Logic -> Logic) 
+          -> NEL.NonEmpty Logic 
+          -> Logic
+foldLogic f logics = foldl f (NEL.head logics) (NEL.tail logics)
+
+foldAnd :: NEL.NonEmpty Logic -> Logic
+foldAnd = foldLogic And
+
+foldOr :: NEL.NonEmpty Logic -> Logic
+foldOr = foldLogic Or
 
 -- | Apply the ANDing logic to sequential elements on the wire
-andLogic :: [Logic] -> Parser Logic
-andLogic logics =
-  case logics of
-    (x:[]) -> return x
-    (x:xs) -> return $ foldl And x xs
-    []     -> fail "Text.LadderLogic.Parser.andLogic received empty input list"
+foldParse :: (NEL.NonEmpty Logic -> Logic) -> NEL.NonEmpty Logic -> Parser Logic
+foldParse f = return . f
 
 {- The segment interface is internal -}
 
@@ -98,15 +109,22 @@ pos seg = (start seg, end seg)
 intoLogic :: Segment -> Logic
 intoLogic = fst . getSegment
 
+andSegment :: NEL.NonEmpty Segment -> Segment
+andSegment segs =
+  let logics = fmap intoLogic segs
+  in Segment (foldAnd logics, (s, e))
+  where s = start $ NEL.head $ NEL.sortBy (comparing start) $ segs
+        e = end   $ NEL.last $ NEL.sortBy (comparing end)   $ segs
+
 -- | Acquire the start and end position of a ladder logic parser,
 -- and create a segment. We can upgrade a wire parser into a segment parser
 -- with this method.
 makeSegment :: Parser Logic -> Parser Segment
 makeSegment parser = do
-  d0    <- position
+  p0    <- position
   logic <- parser
-  d1    <- position
-  return $ Segment (logic, (column d0, column d1))
+  p1    <- position
+  return $ Segment (logic, (column p0, column p1))
 
 parseMainSegment :: Parser [Segment]
 parseMainSegment = do
@@ -125,7 +143,6 @@ parseDanglingSegments = do
         dangling = between plus plus (makeSegment insandouts)
         plus = char '+'
 
-
 -- | Parse one rung. A rung consists of the main wire with zero or more
 -- dangling segments
 parseRung :: Parser [Segment]
@@ -137,19 +154,19 @@ parseRung = do
 
 groupSegmentsBy :: Ord a => (Segment -> a) -> [Segment] -> [[Segment]]
 groupSegmentsBy f segments = 
-  let kvs = map (\s -> (f s, s)) segments
+  let kvs = fmap (\s -> (f s, s)) segments
       groups = Map.fromListWith (++) [(k, [v]) | (k, v) <- kvs]
-  in map (\kv -> snd kv) (Map.toList groups)
+  in fmap (\kv -> snd kv) (Map.toList groups)
 
 -- | Apply the ORing logic to parallel elements of the rung
 orLogic :: [Segment] -> Parser Logic
 orLogic segments = 
   let grouped = groupSegmentsBy pos segments
-      ors = map oring grouped
-  in andLogic ors
+      ors = fmap oring grouped
+  in (foldParse foldAnd) (NEL.fromList ors)
   where oring segs = case segs of
               (x:[]) -> intoLogic x
-              (x:xs) -> foldl Or (intoLogic x) (map intoLogic xs) 
+              (x:xs) -> foldl Or (intoLogic x) (fmap intoLogic xs) 
 
 -- | Parse the whole diagram
 parseLadder :: Parser [Logic]
