@@ -62,6 +62,16 @@ multipleOrs = [r|
 ##         +-------[E]-----+        ##
 |]
 
+spanningOrs :: String
+spanningOrs = [r|
+!!     A program with spanning ORs     !!
+##---[A]--+--[B]---+---[C]----+---(D)--##
+##        |        |          |        ##
+##        +--[E]---+          |        ##
+##        |                   |        ##
+##        +-------[F]---------+        ##
+|]
+
 spec =
   describe "Parser" $ do
     describe "Input parser" $ do
@@ -179,4 +189,13 @@ spec =
             abce = And (Input "A") bce
             expected = Just [And abce (Output "D")]
             actual = testMaybe parseLadder multipleOrs
+        actual `shouldBe` expected
+
+      it "parses a ladder with spanning ORs" $ do
+        let eb = Or (Input "E") (Input "B")
+            ceb = And eb (Input "C")
+            fceb = Or (Input "F") ceb
+            afceb = And (Input "A") fceb
+            expected = Just [And afceb (Output "D")]
+            actual = testMaybe parseLadder spanningOrs
         actual `shouldBe` expected

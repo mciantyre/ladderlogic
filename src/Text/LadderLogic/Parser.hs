@@ -99,21 +99,11 @@ parseRung = do
   dangle <- many (try parseDanglingSegments <* skipEOL)
   return $ segs ++ (concat dangle)
 
--- | Apply the ORing logic to parallel elements of the rung
-orLogic :: [Segment] -> Parser Logic
-orLogic segments = 
-  let grouped = groupSegmentsBy pos segments
-      ors = fmap oring grouped
-  in (return . foldAnd) (NEL.fromList ors)
-  where oring segs = case segs of
-              (x:[]) -> intoLogic x
-              (x:xs) -> foldl Or (intoLogic x) (fmap intoLogic xs) 
-
 -- | Parse the whole diagram
 parseLadder :: Parser [Logic]
 parseLadder = do
   skipEOL
   skipMany comments
-  logics <- some (parseRung >>= orLogic)
+  logics <- some (fmap NEL.fromList parseRung >>= (return . orSegment))
   skipEOL
-  return logics
+  return $ intoLogic <$> logics

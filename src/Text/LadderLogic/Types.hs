@@ -38,7 +38,8 @@ instance Eq Logic where
 foldLogic :: (Logic -> Logic -> Logic) 
           -> NEL.NonEmpty Logic 
           -> Logic
-foldLogic f logics = foldl f (NEL.head logics) (NEL.tail logics)
+foldLogic f logics =
+  foldl f (NEL.head logics) (NEL.tail logics)
 
 -- | Apply AND over the collection of logics
 foldAnd :: NEL.NonEmpty Logic -> Logic
@@ -67,13 +68,19 @@ start = fst . snd . getSegment
 end :: Segment -> Position
 end = snd . snd . getSegment
 
+-- | Get the segment position as a tuple
 pos :: Segment -> (Position, Position)
 pos seg = (start seg, end seg)
 
--- Grab the logic
+-- | Grab the logic
 intoLogic :: Segment -> Logic
 intoLogic = fst . getSegment
 
+-- | Create a segment from a Logic and a start-end Position
+intoSegment :: Logic -> (Position, Position) -> Segment
+intoSegment logic (s, e) = Segment (logic, (s, e))
+
+-- | AND segments together
 andSegment :: NEL.NonEmpty Segment -> Segment
 andSegment segs =
   let logics = fmap intoLogic segs
@@ -81,6 +88,16 @@ andSegment segs =
   where s = start $ NEL.head $ NEL.sortBy (comparing start) $ segs
         e = end   $ NEL.last $ NEL.sortBy (comparing end)   $ segs
 
+-- | OR segments together
+orSegment :: NEL.NonEmpty Segment -> Segment
+orSegment segs =
+  let grouped = fmap NEL.fromList $ NEL.fromList $ groupSegmentsBy pos (NEL.toList segs)
+      positions = (pos . NEL.head) <$> grouped
+      logics = (fmap . fmap) intoLogic grouped
+      ors = NEL.zipWith intoSegment (fmap foldOr logics) positions
+  in andSegment ors
+
+-- | Group segments using a function f to create a type a from the segments
 groupSegmentsBy :: Ord a => (Segment -> a) -> [Segment] -> [[Segment]]
 groupSegmentsBy f segments = 
   let kvs = fmap (\s -> (f s, s)) segments
