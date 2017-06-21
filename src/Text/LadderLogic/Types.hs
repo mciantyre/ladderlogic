@@ -61,16 +61,22 @@ newtype Segment
 type Position = Int64
 
 -- | The start of the segment
-start :: Segment -> Position
-start = fst . snd . getSegment
+segmentStart :: Segment -> Position
+segmentStart = fst . snd . getSegment
 
 -- | The end of the segment
-end :: Segment -> Position
-end = snd . snd . getSegment
+segmentEnd :: Segment -> Position
+segmentEnd = snd . snd . getSegment
 
 -- | Get the segment position as a tuple
-pos :: Segment -> (Position, Position)
-pos seg = (start seg, end seg)
+segmentPosition :: Segment -> (Position, Position)
+segmentPosition seg = (segmentStart seg, segmentEnd seg)
+
+-- | Returns true if the first segment is underneath the second segment
+underneath :: Segment -> Segment -> Bool
+underneath smaller bigger =
+  (segmentStart smaller) >= (segmentStart bigger) &&
+  (segmentEnd smaller) <= (segmentEnd bigger)
 
 -- | Grab the logic
 intoLogic :: Segment -> Logic
@@ -85,14 +91,17 @@ andSegment :: NEL.NonEmpty Segment -> Segment
 andSegment segs =
   let logics = fmap intoLogic segs
   in Segment (foldAnd logics, (s, e))
-  where s = start $ NEL.head $ NEL.sortBy (comparing start) $ segs
-        e = end   $ NEL.last $ NEL.sortBy (comparing end)   $ segs
+  where s = segmentStart $ NEL.head $ NEL.sortBy (comparing segmentStart) $ segs
+        e = segmentEnd   $ NEL.last $ NEL.sortBy (comparing segmentEnd)   $ segs
+
+intoNonEmptyLists :: [[a]] -> NEL.NonEmpty (NEL.NonEmpty a)
+intoNonEmptyLists = (fmap NEL.fromList) . NEL.fromList
 
 -- | OR segments together
 orSegment :: NEL.NonEmpty Segment -> Segment
 orSegment segs =
-  let grouped = fmap NEL.fromList $ NEL.fromList $ groupSegmentsBy pos (NEL.toList segs)
-      positions = (pos . NEL.head) <$> grouped
+  let grouped = intoNonEmptyLists $ groupSegmentsBy segmentPosition (NEL.toList segs)
+      positions = (segmentPosition . NEL.head) <$> grouped
       logics = (fmap . fmap) intoLogic grouped
       ors = NEL.zipWith intoSegment (fmap foldOr logics) positions
   in andSegment ors

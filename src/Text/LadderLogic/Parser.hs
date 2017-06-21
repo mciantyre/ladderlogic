@@ -104,6 +104,6 @@ parseLadder :: Parser [Logic]
 parseLadder = do
   skipEOL
   skipMany comments
-  logics <- some (fmap NEL.fromList parseRung >>= (return . orSegment))
+  logics <- some $ fmap NEL.fromList parseRung >>= (return . orSegment)
   skipEOL
   return $ intoLogic <$> logics
