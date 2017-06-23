@@ -6,7 +6,11 @@ class Logic
 public:
     
     virtual ~Logic() { /* empty */ }
-    virtual bool Evaluate();
+
+    /**
+     * @brief Evaluate the logic statement.
+     */
+    virtual bool Evaluate() const = 0;
 };
 
 #endif // LOGIC_H_
