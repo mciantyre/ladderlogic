@@ -1,6 +1,6 @@
 #include "not.h"
 
-Not::Not(Logic* logic)
+Not::Not(Logic& logic)
     : _logic(logic)
 {
     /* empty */
@@ -8,10 +8,5 @@ Not::Not(Logic* logic)
 
 bool Not::Evaluate() const
 {
-    return !_logic->Evaluate();
-}
-
-Not::~Not()
-{
-    delete _logic;
+    return !_logic.Evaluate();
 }
