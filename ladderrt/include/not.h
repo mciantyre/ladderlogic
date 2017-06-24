@@ -6,10 +6,10 @@
 class Not : public Logic
 {
 public:
-    Not(Logic& logic);
+    Not(Logic* logic);
     bool Evaluate() const override;
-
+    ~Not() override;
 private:
-    Logic& _logic;
+    Logic* _logic;
 };
 #endif

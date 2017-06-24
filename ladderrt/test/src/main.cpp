@@ -32,32 +32,26 @@ class OrTest    : public TestWithParam<TruthTable> {};
 TEST_P(AndTest, MatchesAndTruthTable)
 {
     auto table = GetParam();
-    StubLogic left(table.left);
-    StubLogic right(table.right);
-    And a(left, right);
+    And a(new StubLogic(table.left), new StubLogic(table.right));
     ASSERT_EQ(a.Evaluate(), table.expected);
 }
 
 TEST_P(OrTest, MatchesOrTruthTable)
 {
     auto table = GetParam();
-    StubLogic left(table.left);
-    StubLogic right(table.right);
-    Or o(left, right);
+    Or o(new StubLogic(table.left), new StubLogic(table.right));
     ASSERT_EQ(o.Evaluate(), table.expected);
 }
 
 TEST(NotTest, TrueFalse)
 {
-    StubLogic l(true);
-    Not n(l);
+    Not n(new StubLogic(true));
     ASSERT_FALSE(n.Evaluate());
 }
 
 TEST(NotTest, FalseTrue)
 {
-    StubLogic l(false);
-    Not n(l);
+    Not n(new StubLogic(false));
     ASSERT_TRUE(n.Evaluate());
 }
 

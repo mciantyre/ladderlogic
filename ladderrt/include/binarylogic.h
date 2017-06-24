@@ -7,7 +7,7 @@ template <typename T>
 class BinaryLogicOperation : public Logic
 {
 public:
-    BinaryLogicOperation(Logic& left, Logic& right)
+    BinaryLogicOperation(Logic* left, Logic* right)
         : _left(left)
         , _right(right)
     {
@@ -16,12 +16,18 @@ public:
 
     bool Evaluate() const override
     {
-        return T::Evaluate(_left, _right);
+        return T::Evaluate(*_left, *_right);
+    }
+
+    ~BinaryLogicOperation() override
+    {
+        delete _left;
+        delete _right;
     }
 
 protected:
-    Logic& _left;
-    Logic& _right;
+    Logic* _left;
+    Logic* _right;
 };
 
 struct Andable
