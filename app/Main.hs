@@ -1,20 +1,32 @@
 module Main where
 
-import Control.Monad
-import System.Environment
-import System.IO
-import Text.LadderLogic.Parser
-import Text.Trifecta
+import qualified  Data.ByteString.Char8 as BS
+import            Control.Monad
+import            System.Environment
+import            System.IO
+import            Text.LadderLogic.Parser
+import            Text.LadderLogic.Compiler
+import            Text.Trifecta
+
+type Compiler = CompilerT IO
 
 main :: IO ()
 main = do
   paths <- getArgs
   case paths of
     (p:ps) -> do 
-      result <- parseFromFile parseLadder p
-      case result of
+      contents <- parseFromFile parseLadder p
+      case contents of
         Nothing -> return ()
-        Just a -> print $ show a
+        Just logics -> do
+          let compiler = makeCompiler arduinoValidation arduinoCompiler
+          eps <- forM (fmap compiler logics) runCompilation
+          forM_ eps showprog
+          
     [] -> do
       putStrLn "No file provided!"
       return ()
+
+  where showprog (err, program) = case err of
+            Left (CompilerError msg) -> print msg
+            Right _ ->  print $ repr program
