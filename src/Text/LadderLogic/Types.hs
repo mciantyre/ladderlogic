@@ -4,7 +4,6 @@ import            Data.Function             (on)
 import            Data.Functor              (fmap)
 import            Data.Int
 import            Data.List
-import qualified  Data.List.NonEmpty as NEL
 import            Data.Ord
 import qualified  Data.Map.Strict as Map
 
@@ -65,20 +64,13 @@ simplify logic =
     -- catch-all
     _               -> logic
 
--- | Fold a list of logics into one logic
-foldLogic :: (Logic -> Logic -> Logic) 
-          -> NEL.NonEmpty Logic 
-          -> Logic
-foldLogic f logics =
-  foldl f (NEL.head logics) (NEL.tail logics)
-
 -- | Apply AND over the collection of logics
-foldAnd :: NEL.NonEmpty Logic -> Logic
-foldAnd = foldLogic And
+foldAnd :: [Logic] -> Logic
+foldAnd = simplify . (foldl And NoOp)
 
 -- | Apply OR over the collection of logics
-foldOr :: NEL.NonEmpty Logic -> Logic
-foldOr = foldLogic Or
+foldOr :: [Logic] -> Logic
+foldOr = simplify . (foldl Or NoOp)
 
 {- The segment interface is internal -}
 
@@ -117,23 +109,20 @@ intoSegment :: Logic -> (Position, Position) -> Segment
 intoSegment logic (s, e) = Segment (logic, (s, e))
 
 -- | AND segments together
-andSegment :: NEL.NonEmpty Segment -> Segment
+andSegment :: [Segment] -> Segment
 andSegment segs =
   let logics = fmap intoLogic segs
   in Segment (foldAnd logics, (s, e))
-  where s = segmentStart $ NEL.head $ NEL.sortBy (comparing segmentStart) $ segs
-        e = segmentEnd   $ NEL.last $ NEL.sortBy (comparing segmentEnd)   $ segs
-
-intoNonEmptyLists :: [[a]] -> NEL.NonEmpty (NEL.NonEmpty a)
-intoNonEmptyLists = (fmap NEL.fromList) . NEL.fromList
+  where s = segmentStart $ head $ sortBy (comparing segmentStart) $ segs
+        e = segmentEnd   $ last $ sortBy (comparing segmentEnd)   $ segs
 
 -- | OR segments together
-orSegment :: NEL.NonEmpty Segment -> Segment
+orSegment :: [Segment] -> Segment
 orSegment segs =
-  let grouped = intoNonEmptyLists $ groupSegmentsBy segmentPosition (NEL.toList segs)
-      positions = (segmentPosition . NEL.head) <$> grouped
+  let grouped = groupSegmentsBy segmentPosition segs
+      positions = (segmentPosition . head) <$> grouped
       logics = (fmap . fmap) intoLogic grouped
-      ors = NEL.zipWith intoSegment (fmap foldOr logics) positions
+      ors = zipWith intoSegment (fmap foldOr logics) positions
   in andSegment ors
 
 -- | Group segments using a function f to create a type a from the segments
