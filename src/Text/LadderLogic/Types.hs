@@ -10,7 +10,8 @@ import qualified  Data.Map.Strict as Map
 
 -- | Ladder logic... uh... logic!
 data Logic
-  = Input String          -- ^ an input
+  = NoOp                  -- ^ no operation
+  | Input String          -- ^ an input
   | Output String         -- ^ an output
   | And Logic Logic       -- ^ ANDing of two logic blocks
   | Or Logic Logic        -- ^ ORing of two logic blocks
@@ -18,6 +19,7 @@ data Logic
   deriving (Show)
 
 instance Eq Logic where
+  NoOp == NoOp                = True
   (Input x) == (Input y)      = x == y
   (Output x) == (Output y)    = x == y
   (Not x) == (Not y)          = x == y
@@ -34,6 +36,35 @@ instance Eq Logic where
 
   (==) _ _ = False
 
+-- | Remove NoOps from the logic
+simplify :: Logic -> Logic
+simplify logic =
+  case logic of
+
+    -- Get the explicit NoOps from binary ops
+    And left NoOp   -> simplify left
+    And NoOp right  -> simplify right
+    Or left NoOp    -> simplify left
+    Or NoOp right   -> simplify right
+
+    -- Handle NOT
+    Not NoOp        -> NoOp
+    Not center      -> Not $ simplify center
+
+    -- Simplify through the AND and ORs
+    -- without infinite recursion
+    And left right  -> let logic' = And (simplify left) (simplify right)
+                       in if logic == logic'
+                          then logic            -- at our simplest form
+                          else simplify logic'  -- there's still simplification
+
+    Or left right   -> let logic' = Or (simplify left) (simplify right)
+                       in if logic == logic'
+                          then logic            -- at the simplest form
+                          else simplify logic'  -- there's still simplification
+    -- catch-all
+    _               -> logic
+
 -- | Fold a list of logics into one logic
 foldLogic :: (Logic -> Logic -> Logic) 
           -> NEL.NonEmpty Logic 
@@ -48,7 +79,6 @@ foldAnd = foldLogic And
 -- | Apply OR over the collection of logics
 foldOr :: NEL.NonEmpty Logic -> Logic
 foldOr = foldLogic Or
-
 
 {- The segment interface is internal -}
 

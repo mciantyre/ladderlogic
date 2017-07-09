@@ -4,8 +4,11 @@ import            Text.LadderLogic.Types
 
 import            Control.Applicative
 import qualified  Data.List.NonEmpty as NEL
+import            Data.Maybe (catMaybes)
 import            Text.Trifecta
 import            Text.Trifecta.Delta
+
+{- Simple parsers -}
 
 -- | The only special characters to be used in tag names
 special :: Parser Char
@@ -29,9 +32,10 @@ input = try (brackets p) <|> between (char '[' *> char '/') (char ']') np
 output :: Parser Logic
 output = parens (asLogic Output)
 
--- | Skip the wire symbols connectors
-wires :: Parser ()
-wires = skipMany (oneOf "-")
+skipEOL :: Parser ()
+skipEOL = skipMany (oneOf "\n")
+
+{- Comment parsing -}
 
 -- | Comments are delimited with !! on either end
 -- example: !! This is a comment !!
@@ -48,20 +52,21 @@ comments =
     skipEOL
     return comment
 
+{- Logic parsing -}
+
+-- | Define a wire
+wire :: Parser Char
+wire = char '-'
+
+wires = many wire
+
+parseTag :: Parser (Maybe Logic)
+parseTag = some wire *> optional (input <|> output)
+
 -- | Rungs are delimited with ## on either side
 -- example: ##-----[IN]----(OUT)--##
 borders :: Parser Char
 borders = char '#' *> char '#'
-
-skipEOL :: Parser ()
-skipEOL = skipMany (oneOf "\n")
-
--- | Parse the contents of a wire
--- example : --[B]--(C)---
-insandouts :: Parser Logic
-insandouts =
-  fmap NEL.fromList (some (between wires wires (input <|> output)))
-    >>= (return . foldAnd)
 
 -- | Acquire the start and end position of a ladder logic parser,
 -- and create a segment. We can upgrade a wire parser into a segment parser
@@ -76,18 +81,21 @@ makeSegment parser = do
 parseMainSegment :: Parser [Segment]
 parseMainSegment = do
   borders
-  many $ (makeSegment insandouts) <* (char '+' <|> borders)
+  segs <- some $ optional $ makeSegment $ between wires wires inout <* (many (char '+') <|> some borders)
+  skipEOL
+  return $ catMaybes segs
+  where inout = input <|> output
 
 -- | A dangling segment hangs off of the main wire to create OR behavior
 parseDanglingSegments :: Parser [Segment]
 parseDanglingSegments = do
   borders
-  sb
-  segs <- many (dangling <* sb)
+  spacebars
+  segs <- many (makeSegment dangling <* spacebars)
   borders
   return segs
-  where sb = skipMany (oneOf " |")
-        dangling = between plus plus (makeSegment insandouts)
+  where spacebars = skipMany (oneOf " |")
+        dangling = between (plus *> wires) (wires <* plus) (input <|> output)
         plus = char '+'
 
 -- | Parse one rung. A rung consists of the main wire with zero or more
@@ -95,7 +103,6 @@ parseDanglingSegments = do
 parseRung :: Parser [Segment]
 parseRung = do
   segs <- parseMainSegment
-  skipEOL
   dangle <- many (try parseDanglingSegments <* skipEOL)
   return $ segs ++ (concat dangle)
 

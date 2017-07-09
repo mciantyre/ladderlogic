@@ -42,6 +42,14 @@ diagramWithOring = [r|
 ##          +----[E]-----+        ##
 |]
 
+simpleOrs :: String
+simpleOrs = [r|
+!! Simple oring !!
+##---+--[A]--+---##
+##   |       |   ##
+##   +--[B]--+   ##
+|]
+
 multipleRungs :: String
 multipleRungs = [r|
 !!   A multi-rung program          !!
@@ -60,6 +68,14 @@ multipleOrs = [r|
 ##         +-------[C]-----+        ##
 ##         |               |        ##
 ##         +-------[E]-----+        ##
+|]
+
+sequentialOrs :: String
+sequentialOrs = [r|
+!! A program with sequential OR wires !!
+##---[A]--+--[B]--+-+---[C]---+---(D)-##
+##        |       | |         |       ##
+##        +--[E]--+ +---[F]---+       ##
 |]
 
 spanningOrs :: String
@@ -174,6 +190,10 @@ spec =
             actual = testMaybe parseLadder diagramWithOring
         actual `shouldBe` expected
 
+      it "parses a ladder with a single OR" $ do
+        let actual = testMaybe parseLadder simpleOrs
+        actual `shouldBe` (Just [Or (Input "B") (Input "A")])
+
       it "parses a multi-rung ladder program" $ do
         let bc = Or (Not (Input "C")) (Input "B")
             abc = And (Not (Input "A")) bc
@@ -189,6 +209,14 @@ spec =
             abce = And (Input "A") bce
             expected = Just [And abce (Output "D")]
             actual = testMaybe parseLadder multipleOrs
+        actual `shouldBe` expected
+
+      it "parses a ladder with sequential OR wires" $ do
+        let eb = Or (Input "E") (Input "B")
+            fc = Or (Input "F") (Input "C")
+            aebfc = And (Input "A") (And eb fc)
+            expected = Just [And aebfc (Output "D")]
+            actual = testMaybe parseLadder sequentialOrs
         actual `shouldBe` expected
 
       it "parses a ladder with spanning ORs" $ do
