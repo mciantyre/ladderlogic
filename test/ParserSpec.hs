@@ -168,14 +168,6 @@ spec =
             actual = testMaybe parseLadder "##---[/A]---(B)---##"
         actual `shouldBe` expected
 
-      it "parses a valid diagram with +s in the middle" $ do
-        let ladder = "##--[A]---+--[B]--+---[C]---+----(D)--##"
-            ab = And (Input "A") (Input "B")
-            abc = And ab (Input "C")
-            expceted = Just [And abc (Output "D")]
-            actual = testMaybe parseLadder ladder
-        actual `shouldBe` expceted
-
       it "parses a ladder diagram with unrelated rungs" $ do
         let expected = Just ([And (Not (Input "A")) (Output "B"),
                               And (Input "C") (Output "D")])
@@ -214,7 +206,7 @@ spec =
       it "parses a ladder with sequential OR wires" $ do
         let eb = Or (Input "E") (Input "B")
             fc = Or (Input "F") (Input "C")
-            aebfc = And (Input "A") (And eb fc)
+            aebfc = And (And (Input "A") eb) fc
             expected = Just [And aebfc (Output "D")]
             actual = testMaybe parseLadder sequentialOrs
         actual `shouldBe` expected

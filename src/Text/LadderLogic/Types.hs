@@ -82,6 +82,12 @@ newtype Segment
 
 type Position = Int64
 
+isNoOpSegment :: Segment -> Bool
+isNoOpSegment segment =
+  case intoLogic segment of
+    NoOp  -> True
+    _     -> False
+
 -- | The start of the segment
 segmentStart :: Segment -> Position
 segmentStart = fst . snd . getSegment

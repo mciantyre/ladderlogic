@@ -68,8 +68,8 @@ borders = char '#' *> char '#'
 wires = many wire
 
 tags :: Parser Logic
-tags = some tags >>= (return . foldAnd . catMaybes)
-  where tags = some wire *> optional (input <|> output)
+tags = some iotags >>= (return . foldAnd . catMaybes)
+  where iotags = some wire *> optional (input <|> output)
 
 -- | Acquire the start and end position of a ladder logic parser,
 -- and create a segment. We can upgrade a wire parser into a segment parser
@@ -81,14 +81,13 @@ segment parser = do
   p1    <- position
   return $ Segment (logic, (column p0, column p1))
 
-parseMainSegment :: Parser [Segment]
-parseMainSegment = do
-  borders
-  segs <- some $ choice $ map segment options
-  borders
-  return segs
-  where options = [ tags          <?> "tags all the way"
-                  , fork *> tags  <?> "fork then tags"
+parseMainSegments :: Parser [Segment]
+parseMainSegments = do
+  segs <- between borders borders (some $ choice $ map segment parsers)
+  skipEOL
+  return segs 
+  where parsers = [ tags                    <?> "tags all the way"
+                  , between fork fork tags  <?> "forked tags"
                   ]
 
 -- | A dangling segment hangs off of the main wire to create OR behavior
@@ -96,20 +95,19 @@ parseDanglingSegments :: Parser [Segment]
 parseDanglingSegments = do
   borders
   spacebars
-  segs <- many (segment dangling <* spacebars)
+  segs <- many $ segment (between fork fork tags) <* spacebars
   borders
+  skipEOL
   return segs
   where spacebars = skipMany (oneOf " |")
-        dangling = between (plus *> wires) (wires <* plus) (input <|> output)
-        plus = char '+'
 
 -- | Parse one rung. A rung consists of the main wire with zero or more
 -- dangling segments
 parseRung :: Parser [Segment]
 parseRung = do
-  segs <- parseMainSegment
-  dangle <- many (try parseDanglingSegments <* skipEOL)
-  return $ segs ++ (concat dangle)
+  segs <- parseMainSegments
+  dangle <- many (try parseDanglingSegments)
+  return $ filter (not . isNoOpSegment) (segs ++ (concat dangle))
 
 -- | Parse the whole diagram
 parseLadder :: Parser [Logic]
