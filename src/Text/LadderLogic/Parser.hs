@@ -85,7 +85,7 @@ parseMainSegments :: Parser [Segment]
 parseMainSegments = do
   borders
   seg <- segment tags
-  segs <- many $ segment (fork *> tags)
+  segs <- many $ (fork *> segment tags)
   borders
   skipEOL
   return (seg : segs)
@@ -95,7 +95,7 @@ parseDanglingSegments :: Parser [Segment]
 parseDanglingSegments = do
   borders
   spacebars
-  segs <- many $ segment (fork *> tags) <* fork <* spacebars
+  segs <- many $ (fork *> segment tags) <* fork <* spacebars
   borders
   skipEOL
   return segs
