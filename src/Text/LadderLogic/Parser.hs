@@ -83,19 +83,19 @@ segment parser = do
 
 parseMainSegments :: Parser [Segment]
 parseMainSegments = do
-  segs <- between borders borders (some $ choice $ map segment parsers)
+  borders
+  seg <- segment tags
+  segs <- many $ segment (fork *> tags)
+  borders
   skipEOL
-  return segs 
-  where parsers = [ tags                    <?> "tags all the way"
-                  , between fork fork tags  <?> "forked tags"
-                  ]
+  return (seg : segs)
 
 -- | A dangling segment hangs off of the main wire to create OR behavior
 parseDanglingSegments :: Parser [Segment]
 parseDanglingSegments = do
   borders
   spacebars
-  segs <- many $ segment (between fork fork tags) <* spacebars
+  segs <- many $ segment (fork *> tags) <* fork <* spacebars
   borders
   skipEOL
   return segs
