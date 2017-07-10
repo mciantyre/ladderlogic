@@ -3,20 +3,23 @@
 
 module ParserSpec where
 
-import Text.LadderLogic.Parser
-import Text.LadderLogic.Types
+import            Text.LadderLogic.Parser
+import            Text.LadderLogic.Types
 
-import Test.Hspec
-import Text.RawString.QQ
-import Text.Trifecta
+import            Test.Hspec
+import            Text.RawString.QQ
+import qualified  Text.Trifecta as T
 
-maybeSuccess :: Result a -> Maybe a
-maybeSuccess (Success x) = Just x
-maybeSuccess _ = Nothing
+parseTestString :: T.Parser a -> String -> T.Result a
+parseTestString p s = T.parseString p mempty s
 
-testMaybe :: Parser a -> String -> Maybe a
-testMaybe p s = let m = parseString p mempty s
-                        in maybeSuccess m
+failedParse :: T.Result a -> Bool
+failedParse (T.Success _) = False
+failedParse _           = True
+
+instance (Eq a) => Eq (T.Result a) where
+  (T.Success x) == (T.Success y) = x == y
+  (==) _ _ = False
 
 -- Used in a comment parser test below
 multilineComment :: String
@@ -92,123 +95,123 @@ spec =
   describe "Parser" $ do
     describe "Input parser" $ do
       it "parses input name from brackets" $ do
-        (Just (Input "INPUT")) `shouldBe` (testMaybe input "[INPUT]")
+        parseTestString input "[INPUT]" `shouldBe` (T.Success (Input "INPUT"))
       
       it "parses the NOT indicator ('/') from brackets" $ do
-        let expected = Just (Not (Input "INPUT"))
-            actual = testMaybe input "[/INPUT]"
+        let expected = T.Success (Not (Input "INPUT"))
+            actual = parseTestString input "[/INPUT]"
         actual `shouldBe` expected
 
       it "does not parse empty identifiers" $ do
-        Nothing `shouldBe` testMaybe input "[/]"
+        parseTestString input "[/]" `shouldSatisfy` failedParse
 
       it "parses numbers in identifiers" $ do
-        testMaybe input "[1234567]" `shouldBe` Just (Input "1234567")
+        parseTestString input "[1234567]" `shouldBe` T.Success (Input "1234567")
       
       it "does not parse letters and numbers in identifiers" $ do
-        testMaybe input "[ABC123]" `shouldBe` Just (Input "ABC123")
+        parseTestString input "[ABC123]" `shouldBe` T.Success (Input "ABC123")
 
       it "does not parse spaces in identifiers" $ do
-        testMaybe input "[ABC DEF]" `shouldBe` Nothing
+        parseTestString input "[ABC DEF]" `shouldSatisfy` failedParse
 
       it "parses - (dash) as a delimiter" $ do
-        Just (Not (Input "AB-1c-5d")) `shouldBe` testMaybe input "[/AB-1c-5d]"
+        T.Success (Not (Input "AB-1c-5d")) `shouldBe` parseTestString input "[/AB-1c-5d]"
 
       it "parses _ (underscore) as a delimiter" $ do
-        testMaybe input "[/AB_1c_5d]" `shouldBe` Just (Not (Input "AB_1c_5d"))
+        parseTestString input "[/AB_1c_5d]" `shouldBe` T.Success (Not (Input "AB_1c_5d"))
 
       it "does not parse a valid output" $ do
-        testMaybe input "(OUTPUT)" `shouldBe` Nothing
+        parseTestString input "(OUTPUT)" `shouldSatisfy` failedParse
 
     describe "Output parser" $ do
       it "parses the output name from parentheses" $ do
-        let expected = Just (Output "OUTPUT")
-            actual = testMaybe output "(OUTPUT)"
+        let expected = T.Success (Output "OUTPUT")
+            actual = parseTestString output "(OUTPUT)"
         actual `shouldBe` expected
 
       it "does not parse empty identifiers" $ do
-        Nothing `shouldBe` testMaybe output "()"
+        parseTestString output "()" `shouldSatisfy` failedParse
 
       it "parses numbers in identifiers" $ do
-        testMaybe output "(1234567)" `shouldBe` Just (Output "1234567")
+        parseTestString output "(1234567)" `shouldBe` T.Success (Output "1234567")
 
       it "does not parse letters and numbers in identifiers" $ do
-        testMaybe output "(ABC123)" `shouldBe` Just (Output "ABC123")
+        parseTestString output "(ABC123)" `shouldBe` T.Success (Output "ABC123")
 
       it "does not parse spaces in identifiers" $ do
-        Nothing `shouldBe` testMaybe output "(ABC DEF)"
+        parseTestString output "(ABC DEF)" `shouldSatisfy` failedParse
 
       it "parses - (dash) as a delimiter" $ do
-        testMaybe output "(AB-1c-5d)" `shouldBe` Just (Output "AB-1c-5d")
+        parseTestString output "(AB-1c-5d)" `shouldBe` T.Success (Output "AB-1c-5d")
       
       it "parses _ (underscore) as a delimiter" $ do
-        testMaybe output "(AB_1c_5d)" `shouldBe` Just (Output "AB_1c_5d")
+        parseTestString output "(AB_1c_5d)" `shouldBe` T.Success (Output "AB_1c_5d")
 
       it "does not parse a valid input" $ do
-        testMaybe output "[INPUT]" `shouldBe` Nothing
+        parseTestString output "[INPUT]" `shouldSatisfy` failedParse
 
     describe "Comment parser" $ do
       it "returns the contents of the comment" $ do
-        testMaybe comments "!! Hello world !!" `shouldBe` Just ([" Hello world "])
+        parseTestString comments "!! Hello world !!" `shouldBe` T.Success ([" Hello world "])
 
       it "skips comments and parses input" $ do
-        testMaybe (comments >> input) "!! Hello world !![Hello]" `shouldBe` Just (Input "Hello")
+        parseTestString (comments >> input) "!! Hello world !![Hello]" `shouldBe` T.Success (Input "Hello")
       
       it "fails to skip invalid comments" $ do
-        testMaybe (comments >> input) "## This fails ## " `shouldBe` Nothing
+        parseTestString (comments >> input) "## This fails ## " `shouldSatisfy` failedParse
 
       it "parses multiline comments" $ do
-        let expected = Just ([" This is a multiline comment ", " It always needs to be bookended by "])
-            actual = testMaybe comments multilineComment
+        let expected = T.Success ([" This is a multiline comment ", " It always needs to be bookended by "])
+            actual = parseTestString comments multilineComment
         actual `shouldBe` expected
     
     describe "Ladder parser" $ do
       it "parses a simple ladder diagram" $ do
-        let expected = Just ([And (Not (Input "A")) (Output "B")])
-            actual = testMaybe parseLadder "##---[/A]---(B)---##"
+        let expected = T.Success ([And (Not (Input "A")) (Output "B")])
+            actual = parseTestString parseLadder "##---[/A]---(B)---##"
         actual `shouldBe` expected
 
       it "parses a ladder diagram with unrelated rungs" $ do
-        let expected = Just ([And (Not (Input "A")) (Output "B"),
+        let expected = T.Success ([And (Not (Input "A")) (Output "B"),
                               And (Input "C") (Output "D")])
-            actual = testMaybe parseLadder unrelatedRungs
+            actual = parseTestString parseLadder unrelatedRungs
         actual `shouldBe` expected
 
       it "parses a ladder with ORing wires" $ do
         let bc = And (Input "B") (Input "C")
             ebc = Or (Input "E") bc
             aebc = And (Input "A") ebc
-            expected = Just [And aebc (Output "D")]
-            actual = testMaybe parseLadder diagramWithOring
+            expected = T.Success [And aebc (Output "D")]
+            actual = parseTestString parseLadder diagramWithOring
         actual `shouldBe` expected
 
       it "parses a ladder with a single OR" $ do
-        let actual = testMaybe parseLadder simpleOrs
-        actual `shouldBe` (Just [Or (Input "B") (Input "A")])
+        let actual = parseTestString parseLadder simpleOrs
+        actual `shouldBe` (T.Success [Or (Input "B") (Input "A")])
 
       it "parses a multi-rung ladder program" $ do
         let bc = Or (Not (Input "C")) (Input "B")
             abc = And (Not (Input "A")) bc
             rung1 = And (abc) (Output "D")
             rung2 = And (Not (Input "F")) (Output "G")
-            expected = Just [rung1, rung2]
-            actual = testMaybe parseLadder multipleRungs
+            expected = T.Success [rung1, rung2]
+            actual = parseTestString parseLadder multipleRungs
         actual `shouldBe` expected
 
       it "parses a ladder with multiple OR wires" $ do
         let ec = Or (Input "E") (Input "C")
             bce = Or ec (Input "B")
             abce = And (Input "A") bce
-            expected = Just [And abce (Output "D")]
-            actual = testMaybe parseLadder multipleOrs
+            expected = T.Success [And abce (Output "D")]
+            actual = parseTestString parseLadder multipleOrs
         actual `shouldBe` expected
 
       it "parses a ladder with sequential OR wires" $ do
         let eb = Or (Input "E") (Input "B")
             fc = Or (Input "F") (Input "C")
             aebfc = And (And (Input "A") eb) fc
-            expected = Just [And aebfc (Output "D")]
-            actual = testMaybe parseLadder sequentialOrs
+            expected = T.Success [And aebfc (Output "D")]
+            actual = parseTestString parseLadder sequentialOrs
         actual `shouldBe` expected
 
       it "parses a ladder with spanning ORs" $ do
@@ -216,6 +219,6 @@ spec =
             ceb = And eb (Input "C")
             fceb = Or (Input "F") ceb
             afceb = And (Input "A") fceb
-            expected = Just [And afceb (Output "D")]
-            actual = testMaybe parseLadder spanningOrs
+            expected = T.Success [And afceb (Output "D")]
+            actual = parseTestString parseLadder spanningOrs
         actual `shouldBe` expected
