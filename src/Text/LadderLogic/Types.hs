@@ -1,5 +1,6 @@
 module Text.LadderLogic.Types where
 
+import            Control.Monad             (guard)
 import            Data.Function             (on)
 import            Data.Functor              (fmap)
 import            Data.Int
@@ -78,7 +79,7 @@ foldOr = simplify . (foldl Or NoOp)
 -- in the text
 newtype Segment
   = Segment { getSegment :: (Logic, (Position, Position))}
-  deriving (Show)
+  deriving (Show, Eq)
 
 type Position = Int64
 
@@ -100,11 +101,12 @@ segmentEnd = snd . snd . getSegment
 segmentPosition :: Segment -> (Position, Position)
 segmentPosition seg = (segmentStart seg, segmentEnd seg)
 
--- | Returns true if the first segment is underneath the second segment
-underneath :: Segment -> Segment -> Bool
-underneath smaller bigger =
-  (segmentStart smaller) >= (segmentStart bigger) &&
-  (segmentEnd smaller) <= (segmentEnd bigger)
+-- | Returns true if the larger spans the smaller
+spans :: Segment -> Segment -> Bool
+spans larger smaller =
+  (segmentStart smaller) >= (segmentStart larger) &&
+  (segmentEnd smaller) <= (segmentEnd larger) &&
+  (segmentPosition larger) /= (segmentPosition smaller)
 
 -- | Grab the logic
 intoLogic :: Segment -> Logic
@@ -122,14 +124,27 @@ andSegment segs =
   where s = segmentStart $ head $ sortBy (comparing segmentStart) $ segs
         e = segmentEnd   $ last $ sortBy (comparing segmentEnd)   $ segs
 
--- | OR segments together
-orSegment :: [Segment] -> Segment
-orSegment segs =
+orStack :: [Segment] -> Segment
+orStack segs =
   let grouped = groupSegmentsBy segmentPosition segs
       positions = (segmentPosition . head) <$> grouped
       logics = (fmap . fmap) intoLogic grouped
       ors = zipWith intoSegment (fmap foldOr logics) positions
   in andSegment ors
+
+segmentLogic :: [Segment] -> Segment
+segmentLogic segments = orStack $ do
+  seg <- segments
+  let spanned = filter (spans seg) segments
+  if (not . null) spanned 
+  then return $ orStack [seg, segmentLogic spanned]
+  else do
+    guard $ (not . (elem seg)) spanned
+    return seg
+  -- orStack $ segments >>= (\seg ->
+  --   if any (spans seg) segments
+  --   then return $ orStack [seg, (segmentLogic $ filter (spans seg) segments)]
+  --   else return seg)
 
 -- | Group segments using a function f to create a type a from the segments
 groupSegmentsBy :: Ord a => (Segment -> a) -> [Segment] -> [[Segment]]

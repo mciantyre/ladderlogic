@@ -114,6 +114,6 @@ parseLadder :: Parser [Logic]
 parseLadder = do
   skipEOL
   skipMany comments
-  logics <- some $ parseRung >>= (return . orSegment)
+  logics <- some $ parseRung >>= (return . segmentLogic)
   skipEOL
   return $ intoLogic <$> logics
