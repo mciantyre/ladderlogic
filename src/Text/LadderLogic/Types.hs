@@ -1,6 +1,5 @@
 module Text.LadderLogic.Types where
 
-import            Control.Monad             (guard)
 import            Data.Function             (on)
 import            Data.Functor              (fmap)
 import            Data.Int
@@ -133,18 +132,12 @@ orStack segs =
   in andSegment ors
 
 segmentLogic :: [Segment] -> Segment
-segmentLogic segments = orStack $ do
-  seg <- segments
-  let spanned = filter (spans seg) segments
-  if (not . null) spanned 
-  then return $ orStack [seg, segmentLogic spanned]
-  else do
-    guard $ (not . (elem seg)) spanned
-    return seg
-  -- orStack $ segments >>= (\seg ->
-  --   if any (spans seg) segments
-  --   then return $ orStack [seg, (segmentLogic $ filter (spans seg) segments)]
-  --   else return seg)
+segmentLogic segments = 
+  let spanned = segments >>= (\s -> filter (spans s) segments)
+  in case spanned of
+    [] -> orStack segments
+    _  -> let leftovers = segments \\ spanned
+          in segmentLogic $ (orStack spanned) : leftovers
 
 -- | Group segments using a function f to create a type a from the segments
 groupSegmentsBy :: Ord a => (Segment -> a) -> [Segment] -> [[Segment]]
