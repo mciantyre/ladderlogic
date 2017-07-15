@@ -91,6 +91,16 @@ spanningOrs = [r|
 ##        +-------[F]---------+        ##
 |]
 
+complexLadder :: String
+complexLadder = [r|
+!!             A complex test                       !!
+##---[A]---+--[B]---[C]--+---[D]----+---[E]--(F)----##
+##         |             |          |               ##
+##         |             +-[R]--[S]-+               ##
+##         |                        |               ##
+##         +-[X]----------------[Y]-+               ##
+|]
+
 spec =
   describe "Parser" $ do
     describe "Input parser" $ do
@@ -222,3 +232,19 @@ spec =
             expected = T.Success [And afceb (Output "D")]
             actual = parseTestString parseLadder spanningOrs
         actual `shouldBe` expected
+
+      it "parses a complex ladder" $ do
+        let rs = And (Input "R") (Input "S")
+            ef = And (Input "E") (Output "F")
+            bc = And (Input "B") (Input "C")
+            xy = And (Input "X") (Input "Y")
+            drs = Or rs (Input "D")
+            bcdrs = And bc drs
+            xybcdrs = Or xy bcdrs
+            axybcdrs = And (Input "A") xybcdrs
+
+            expected = T.Success [And axybcdrs ef]
+            actual = parseTestString parseLadder complexLadder
+            
+        actual `shouldBe` expected
+
