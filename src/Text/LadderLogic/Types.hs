@@ -76,11 +76,7 @@ foldOr = simplify . (foldl Or NoOp)
 
 {- Compiler types -}
 
-newtype Pin = Pin Int
-  deriving (Eq, Ord, Show)
-
-type Variables = Map.Map Pin Logic
-
+type Variables = Map.Map String Logic
 data Program = Program
              { vars :: Variables
              , stack :: BS.ByteString

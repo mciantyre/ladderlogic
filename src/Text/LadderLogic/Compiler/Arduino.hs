@@ -4,6 +4,7 @@ import Text.LadderLogic.Types
 
 import Control.Monad
 import Control.Monad.Except
+import Data.Char
 
 arduinoCompiler :: Monad m => Logic -> CompilerT m ()
 arduinoCompiler logic = do
@@ -15,8 +16,5 @@ arduinoCompiler logic = do
     Or left right   -> arduinoCompiler left >> arduinoCompiler right >> push '|'
     Not n           -> arduinoCompiler n    >> push '!'
 
-arduinoValidation :: Monad m => Pin -> CompilerT m Pin
-arduinoValidation (Pin p) =
-  if (0 <= p) && (p <= 13)
-  then return $ Pin p
-  else throwError (CompilerError "arduinoValidation received invalid pin")
+arduinoValidation :: Monad m => Logic -> CompilerT m Logic
+arduinoValidation logic = return logic

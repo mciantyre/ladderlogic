@@ -30,15 +30,15 @@ runCompilation compiler =
   (runStateT . runExceptT . runCompilerT) compiler emptyProgram
 
 -- | A default validation scheme
-defaultValidation :: Monad m => Pin -> CompilerT m Pin
+defaultValidation :: Monad m => Logic -> CompilerT m Logic
 defaultValidation = return
 
 -- | A default compilation mode
 defaultCompiler :: Monad m => Logic -> CompilerT m ()
 defaultCompiler logic = forM_ (show logic) push
 
--- | Add the variable into the compiler
-addVariable :: Monad m => Pin -> Logic -> CompilerT m ()
+-- | Add the variable into the program
+addVariable :: Monad m => String -> Logic -> CompilerT m ()
 addVariable p l = do
   vs <- gets vars
   let ml = Map.lookup p vs
@@ -49,16 +49,16 @@ addVariable p l = do
       throwError $ CompilerError $ "Error: reassignment of logic " ++ (show l') ++ " -> " ++ (show l)
  
 -- | Perform program validation with the validation function on the logic
-validateWith :: Monad m => (Pin -> CompilerT m Pin) -> Logic -> CompilerT m ()
+validateWith :: Monad m => (Logic -> CompilerT m Logic) -> Logic -> CompilerT m ()
 validateWith validation logic =
   case logic of
     Input i -> do
-      p <- validation $ Pin (read i)
-      addVariable p logic
+      p <- validation logic
+      addVariable i logic
 
     Output o -> do
-      p <- validation $ Pin (read o)
-      addVariable p logic
+      p <- validation logic
+      addVariable o logic
 
     And left right  -> validateWith validation left >> validateWith validation right
     Or left right   -> validateWith validation left >> validateWith validation right
@@ -66,7 +66,7 @@ validateWith validation logic =
 
 -- | Create a compiler type with a compiler routine and a validation routine
 makeCompiler :: Monad m
-             => (Pin -> CompilerT m Pin)
+             => (Logic -> CompilerT m Logic)
              -> (Logic -> CompilerT m ())
              -> Logic
              -> CompilerT m ()
