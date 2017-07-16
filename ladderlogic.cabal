@@ -16,6 +16,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Text.LadderLogic
                        Text.LadderLogic.Compiler
+                       Text.LadderLogic.Compiler.Arduino
                        Text.LadderLogic.Types
                        Text.LadderLogic.Parser
   build-depends:       base >= 4.7 && < 5

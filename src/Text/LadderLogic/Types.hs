@@ -1,5 +1,10 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Text.LadderLogic.Types where
 
+import            Control.Monad.Except
+import            Control.Monad.State
+import qualified  Data.ByteString.Char8 as BS
 import            Data.Function             (on)
 import            Data.Functor              (fmap)
 import            Data.Int
@@ -145,3 +150,31 @@ groupSegmentsBy f segments =
   let kvs = fmap (\s -> (f s, s)) segments
       groups = Map.fromListWith (++) [(k, [v]) | (k, v) <- kvs]
   in fmap (\kv -> snd kv) (Map.toList groups)
+
+{- Compiler types -}
+
+newtype Pin = Pin Int
+  deriving (Eq, Ord, Show)
+
+type Variables = Map.Map Pin Logic
+
+data Program = Program
+             { vars :: Variables
+             , stack :: BS.ByteString
+             }
+
+repr :: Program -> String
+repr = BS.unpack . stack
+
+newtype CompilerError = CompilerError String
+
+newtype CompilerT m a =
+  CompilerT { runCompilerT :: ExceptT CompilerError (StateT Program m) a}
+  deriving (Functor, Applicative, Monad,
+            MonadState Program, MonadError CompilerError)
+
+-- | Add to the program stack
+push :: Monad m => Char -> CompilerT m ()
+push w = do
+  ws <- gets stack
+  modify (\prog -> prog { stack = w `BS.cons` ws })

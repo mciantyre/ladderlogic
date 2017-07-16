@@ -4,11 +4,8 @@ import qualified  Data.ByteString.Char8 as BS
 import            Control.Monad
 import            System.Environment
 import            System.IO
-import            Text.LadderLogic.Parser
-import            Text.LadderLogic.Compiler
+import            Text.LadderLogic
 import            Text.Trifecta
-
-type Compiler = CompilerT IO
 
 main :: IO ()
 main = do
@@ -19,7 +16,7 @@ main = do
       case contents of
         Nothing -> return ()
         Just logics -> do
-          let compiler = makeCompiler arduinoValidation arduinoCompiler
+          let compiler = makeCompiler defaultValidation defaultCompiler
           eps <- forM (fmap compiler logics) runCompilation
           forM_ eps showprog
           
