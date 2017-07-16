@@ -43,7 +43,8 @@ test-suite ladderlogic-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
-  other-modules:       ParserSpec
+  other-modules:       CompilerSpec
+                       ParserSpec
                        TypesSpec
   build-depends:       base
                      , ladderlogic
