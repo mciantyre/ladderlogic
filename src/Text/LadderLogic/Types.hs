@@ -2,6 +2,7 @@
 
 module Text.LadderLogic.Types where
 
+import            Control.Applicative
 import            Control.Monad.Except
 import            Control.Monad.State
 import qualified  Data.ByteString.Char8 as BS
@@ -89,10 +90,11 @@ repr :: Program -> String
 repr = BS.unpack . stack
 
 newtype CompilerError = CompilerError String
+  deriving (Show, Eq, Monoid)
 
 newtype CompilerT m a =
   CompilerT { runCompilerT :: ExceptT CompilerError (StateT Program m) a}
-  deriving (Functor, Applicative, Monad,
+  deriving (Functor, Applicative, Monad, Alternative,
             MonadState Program, MonadError CompilerError)
 
 -- | Add to the program stack

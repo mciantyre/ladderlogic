@@ -19,4 +19,4 @@ arduinoValidation :: Monad m => Pin -> CompilerT m Pin
 arduinoValidation (Pin p) =
   if (0 <= p) && (p <= 13)
   then return $ Pin p
-  else throwError (CompilerError "Text.LadderLogic.Compiler.arduinoValidation received invalid pin")
+  else throwError (CompilerError "arduinoValidation received invalid pin")
