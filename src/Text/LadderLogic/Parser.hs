@@ -1,6 +1,7 @@
 module Text.LadderLogic.Parser where
 
 import            Text.LadderLogic.Types
+import            Text.LadderLogic.Types.Internal
 
 import            Control.Applicative
 import            Data.Maybe (catMaybes)
@@ -114,6 +115,6 @@ parseLadder :: Parser [Logic]
 parseLadder = do
   skipEOL
   skipMany comments
-  logics <- some $ parseRung >>= (return . segmentLogic)
+  logics <- some $ parseRung >>= (return . segmentCollapse)
   skipEOL
   return $ intoLogic <$> logics
