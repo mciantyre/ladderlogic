@@ -46,7 +46,7 @@ addVariable p l = do
     Nothing -> modify (\prog -> prog {vars = (Map.insert p l vs)})
     Just l' -> do
       guard (l' /= l)
-      throwError $ CompilerError $ "Error: reassignment of logic " ++ (show l') ++ " -> " ++ (show l)
+      compilerError $ "Error: reassignment of logic " ++ (show l') ++ " -> " ++ (show l)
  
 -- | Perform program validation with the validation function on the logic
 validateWith :: Monad m => (Logic -> CompilerT m Logic) -> Logic -> CompilerT m ()

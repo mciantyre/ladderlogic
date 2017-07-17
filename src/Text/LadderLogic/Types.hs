@@ -98,3 +98,6 @@ push :: Monad m => Char -> CompilerT m ()
 push w = do
   ws <- gets stack
   modify (\prog -> prog { stack = w `BS.cons` ws })
+
+compilerError :: (Monad m) => String -> CompilerT m a
+compilerError msg = throwError $ CompilerError msg
