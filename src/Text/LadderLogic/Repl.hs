@@ -13,19 +13,25 @@ import qualified  Data.Map.Strict as Map
 import            System.IO
 import            Text.Trifecta
 
+-- | The REPL executes in an IO context
 type Repl = ReplT IO
 
+-- | Print a string and flush the output
 printString :: String -> IO ()
 printString str = putStr str >> hFlush stdout
 
+-- | Display the prompt and receive input
 prompt :: String -> IO String
 prompt p = printString p >> getLine
 
+-- | Statements used for quitting the REPL
 quits :: [String]
 quits = ["quit", ":q", "exit"]
 
+-- | An Action accepts a list of arguments and executes in the REPL
 type Action = [String] -> Repl ()
 
+-- | A mapping of action words to the actual actions
 actions :: [(String, Action)]
 actions = [ ("true"   , setInput True)
           , ("false"  , setInput False)
@@ -34,22 +40,22 @@ actions = [ ("true"   , setInput True)
           , ("logic"  , const showLogic)
           , ("help"   , const showHelp)
           ]
-
-actionWords :: String
-actionWords =
-  let acts = map fst actions
-  in intercalate ", " acts
-
+ 
+-- | Display possible actions
 showActions :: IO ()
 showActions = putStrLn $ "Possible actions are " ++ actionWords
+  where actionWords =  let acts = map fst actions
+                       in intercalate ", " acts
 
+
+-- | Display a help message
 showHelp :: Repl ()
 showHelp = do
   liftIO $ putStrLn "A LadderLogic REPL"
   liftIO showActions
   liftIO $ putStrLn $ "To exit, type one of " ++ intercalate ", " quits
   
-
+-- | Set the input(s) to the provided value
 setInput :: Bool -> Action
 setInput _ [] = return ()
 setInput b (s:ss) = do
@@ -61,6 +67,7 @@ setInput b (s:ss) = do
     Just (Output _) -> liftIO $ putStrLn $ "Cannot mutate output " ++ s
     _               -> liftIO $ putStrLn $ "Not a variable: " ++ s
 
+-- | Show the current values of the REPL
 showValues :: Repl ()
 showValues = do
   updateValues
@@ -69,16 +76,19 @@ showValues = do
   let tvs = Map.intersectionWith (,) ts vs  
   liftIO $ forM_ (map show (Map.elems tvs)) putStrLn
 
+-- | Display the ladder from which the REPL derives
 showLadder :: Repl ()
 showLadder = do
   l <- gets ladder
   liftIO $ putStrLn l
 
+-- | Display the logic of the program
 showLogic :: Repl ()
 showLogic = do
   l <- ask
   liftIO $ putStrLn (show l)
 
+-- | Lookup an action based on the input
 handleInput :: String -> Repl ()
 handleInput input = do
   if null input
@@ -89,6 +99,7 @@ handleInput input = do
       Just action -> action ws
       Nothing     -> liftIO $ putStrLn ("Unknown command: " ++ w) >> showActions
 
+-- | The REPL loops until quit
 repl :: Repl ()
 repl = do
   input <- liftIO $ prompt "Ladder>> "
@@ -96,6 +107,7 @@ repl = do
   then liftIO $ putStrLn "Goodbye!\n"
   else handleInput input >> repl
 
+-- | Create an initial REPL state
 makeReplState :: String -> Logic -> ReplState
 makeReplState s l =
   ReplState (recurse l (const False) Map.empty) (recurse l id Map.empty) s
@@ -108,6 +120,7 @@ makeReplState s l =
                         And l r     -> recurse l f (recurse r f m)
                         Or l r      -> recurse l f (recurse r f m)
 
+-- | Update the output tags based on the input tags
 updateValues :: Repl ()
 updateValues = do
   vs <- gets vals
@@ -121,6 +134,7 @@ updateValues = do
   where outputs l = case l of Output _ -> True
                               _        -> False
 
+-- | Evaluate a ladder logic program with a map of inputs to current values
 evaluate :: Logic -> Map.Map String Bool -> Bool
 evaluate (And l (Output _)) m = evaluate l m
 evaluate (And (Output _) r) m = evaluate r m
@@ -132,6 +146,7 @@ evaluate log m =
     Input i   -> maybe False id (Map.lookup i m)
     Output o  -> maybe False id (Map.lookup o m)
 
+-- | Load a file and open a REPL with the program
 load :: FilePath -> IO ()
 load path = do
   contents <- readFile path

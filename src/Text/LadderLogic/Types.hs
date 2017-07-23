@@ -76,20 +76,24 @@ foldAnd = simplify . (foldl And NoOp)
 foldOr :: [Logic] -> Logic
 foldOr = simplify . (foldl Or NoOp)
 
-
+-- | A mapping of strings to their Logic statement
 type Variables = Map.Map String Logic
 
+-- | The program maintains variables and a representative stack
 data Program = Program
              { vars :: Variables
              , stack :: BS.ByteString
              }
 
+-- | Get the stack
 repr :: Program -> String
 repr = BS.unpack . stack
 
+-- | A compiler error is thrown if there is an issue during compilation
 newtype CompilerError = CompilerError String
   deriving (Show, Eq, Monoid)
 
+-- | The compiler runs in a stateful, error-prone context
 newtype CompilerT m a =
   CompilerT { runCompilerT :: ExceptT CompilerError (StateT Program m) a}
   deriving (Functor, Applicative, Monad, Alternative,
@@ -101,20 +105,25 @@ push w = do
   ws <- gets stack
   modify (\prog -> prog { stack = w `BS.cons` ws })
 
+-- | Throw a compiler error
 compilerError :: (Monad m) => String -> CompilerT m a
 compilerError msg = throwError $ CompilerError msg
 
+-- | The values maintained in the REPL
 data ReplState = ReplState
                { vals :: Map.Map String Bool
                , types :: Map.Map String Logic
                , ladder :: String
                }
 
+-- | The REPL type is an interactive environment for manipulating a ladder
+-- logic program.
 newtype ReplT m a =
   ReplT { runReplT :: StateT ReplState (ReaderT Logic m) a }
   deriving (Functor, Applicative, Monad, MonadIO,
             MonadState ReplState, MonadReader Logic)
 
+-- | Run a REPL type with an initial REPL state. Based on the provided Logic
 replize :: (Monad m) => ReplT m a -> ReplState -> Logic -> m a
 replize r s l = do
   let ms = runReplT r
