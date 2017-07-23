@@ -1,6 +1,11 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module Text.LadderLogic.Repl where
+module Text.LadderLogic.Repl
+( Repl
+, setInput
+, makeReplState
+, repl
+) where
 
 import            Text.LadderLogic.Parser
 import            Text.LadderLogic.Types
@@ -46,7 +51,6 @@ showActions :: IO ()
 showActions = putStrLn $ "Possible actions are " ++ actionWords
   where actionWords =  let acts = map fst actions
                        in intercalate ", " acts
-
 
 -- | Display a help message
 showHelp :: Repl ()
@@ -102,10 +106,13 @@ handleInput input = do
 -- | The REPL loops until quit
 repl :: Repl ()
 repl = do
-  input <- liftIO $ prompt "Ladder>> "
-  if input `elem` quits
-  then liftIO $ putStrLn "Goodbye!\n"
-  else handleInput input >> repl
+  showHelp
+  loop
+  where loop = do
+          input <- liftIO $ prompt "Ladder>> "
+          if input `elem` quits
+          then liftIO $ putStrLn "Goodbye!\n"
+          else handleInput input >> repl
 
 -- | Create an initial REPL state
 makeReplState :: String -> Logic -> ReplState

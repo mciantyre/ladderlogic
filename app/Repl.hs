@@ -23,4 +23,4 @@ load path = do
   case parseString parseLadder mempty contents of
     Failure err -> putStrLn $ "Error parsing file: " ++ (show err)
     Success (logic:_) ->
-      replize (showHelp >> repl) (makeReplState contents logic) logic
+      replize repl (makeReplState contents logic) logic
