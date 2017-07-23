@@ -106,6 +106,7 @@ compilerError msg = throwError $ CompilerError msg
 
 data ReplState = ReplState
                { vals :: Map.Map String Bool
+               , types :: Map.Map String Logic
                , ladder :: String
                }
 

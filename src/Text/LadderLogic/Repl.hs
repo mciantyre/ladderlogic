@@ -24,18 +24,15 @@ prompt p = printString p >> getLine
 quits :: [String]
 quits = ["quit", ":q", "exit"]
 
-emptyReplState :: ReplState
-emptyReplState = ReplState Map.empty []
-
 type Action = [String] -> Repl ()
 
 actions :: [(String, Action)]
-actions = [ ("open"   , setInput True)
-          , ("close"  , setInput False)
-          , ("show"   , showValues)
-          , ("ladder" , showLadder)
-          , ("logic"  , showLogic)
-          , ("help"   , showHelp)
+actions = [ ("true"   , setInput True)
+          , ("false"  , setInput False)
+          , ("values" , const showValues)
+          , ("ladder" , const showLadder)
+          , ("logic"  , const showLogic)
+          , ("help"   , const showHelp)
           ]
 
 actionWords :: String
@@ -46,32 +43,39 @@ actionWords =
 showActions :: IO ()
 showActions = putStrLn $ "Possible actions are " ++ actionWords
 
-showHelp :: Action
-showHelp _ = do
+showHelp :: Repl ()
+showHelp = do
   liftIO $ putStrLn "A LadderLogic REPL"
   liftIO showActions
   liftIO $ putStrLn $ "To exit, type one of " ++ intercalate ", " quits
+  
 
 setInput :: Bool -> Action
 setInput _ [] = return ()
 setInput b (s:ss) = do
+  ts <- gets types
   vs <- gets vals
-  if Map.member s vs
-  then modify (\rs -> rs { vals = Map.insert s b vs } ) >> setInput b ss
-  else liftIO $ putStrLn $ "Not a variable: " ++ s
+  case Map.lookup s ts of
+    Just (Input _)  ->
+      modify (\rs -> rs { vals = Map.insert s b vs } ) >> setInput b ss
+    Just (Output _) -> liftIO $ putStrLn $ "Cannot mutate output " ++ s
+    _               -> liftIO $ putStrLn $ "Not a variable: " ++ s
 
-showValues :: Action
-showValues _ = do
+showValues :: Repl ()
+showValues = do
+  updateValues
   vs <- gets vals
-  liftIO $ forM_ (map show $ Map.assocs vs) putStrLn
+  ts <- gets types
+  let tvs = Map.intersectionWith (,) ts vs  
+  liftIO $ forM_ (map show (Map.elems tvs)) putStrLn
 
-showLadder :: Action
-showLadder _ = do
+showLadder :: Repl ()
+showLadder = do
   l <- gets ladder
   liftIO $ putStrLn l
 
-showLogic :: Action
-showLogic _ = do
+showLogic :: Repl ()
+showLogic = do
   l <- ask
   liftIO $ putStrLn (show l)
 
@@ -93,20 +97,45 @@ repl = do
   else handleInput input >> repl
 
 makeReplState :: String -> Logic -> ReplState
-makeReplState s l = ReplState (loop l Map.empty) s
-  where loop :: Logic -> Map.Map String Bool -> Map.Map String Bool
-        loop l m =
-          case l of
-            NoOp        -> m
-            Input i     -> Map.insert i False m
-            Output o    -> Map.insert o False m
-            Not n       -> loop n m
-            And l r     -> loop l (loop r m)
-            Or l r      -> loop l (loop r m)
+makeReplState s l =
+  ReplState (recurse l (const False) Map.empty) (recurse l id Map.empty) s
+  where recurse :: Logic -> (Logic -> a) -> Map.Map String a -> Map.Map String a
+        recurse l f m = case l of
+                        NoOp        -> m
+                        Input i     -> Map.insert i (f l) m
+                        Output o    -> Map.insert o (f l) m
+                        Not n       -> recurse n f m
+                        And l r     -> recurse l f (recurse r f m)
+                        Or l r      -> recurse l f (recurse r f m)
+
+updateValues :: Repl ()
+updateValues = do
+  vs <- gets vals
+  ts <- gets types
+  l <- ask
+  let outs = Map.filter outputs ts
+      outvs = Map.intersection vs outs
+      outvs' = Map.map (const $ evaluate l vs) outvs
+      vs' = Map.union outvs' vs
+  modify (\rs -> rs { vals = vs' } )
+  where outputs l = case l of Output _ -> True
+                              _        -> False
+
+evaluate :: Logic -> Map.Map String Bool -> Bool
+evaluate (And l (Output _)) m = evaluate l m
+evaluate (And (Output _) r) m = evaluate r m
+evaluate log m =
+  case log of
+    And l r   -> (evaluate l m) && (evaluate r m)
+    Or l r    -> (evaluate l m) || (evaluate r m)
+    Not n     -> not (evaluate n m)
+    Input i   -> maybe False id (Map.lookup i m)
+    Output o  -> maybe False id (Map.lookup o m)
 
 load :: FilePath -> IO ()
 load path = do
   contents <- readFile path
   case parseString parseLadder mempty contents of
     Failure err -> putStrLn $ "Error parsing file: " ++ (show err)
-    Success (logic:_) -> replize repl (makeReplState contents logic) logic
+    Success (logic:_) ->
+      replize repl (makeReplState contents logic) logic
