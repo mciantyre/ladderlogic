@@ -145,12 +145,3 @@ evaluate log m =
     Not n     -> not (evaluate n m)
     Input i   -> maybe False id (Map.lookup i m)
     Output o  -> maybe False id (Map.lookup o m)
-
--- | Load a file and open a REPL with the program
-load :: FilePath -> IO ()
-load path = do
-  contents <- readFile path
-  case parseString parseLadder mempty contents of
-    Failure err -> putStrLn $ "Error parsing file: " ++ (show err)
-    Success (logic:_) ->
-      replize repl (makeReplState contents logic) logic
