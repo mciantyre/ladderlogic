@@ -4,6 +4,8 @@ module Text.LadderLogic.Types where
 
 import            Control.Applicative
 import            Control.Monad.Except
+import            Control.Monad.IO.Class
+import            Control.Monad.Reader
 import            Control.Monad.State
 import qualified  Data.ByteString.Char8 as BS
 import            Data.Int
@@ -74,9 +76,9 @@ foldAnd = simplify . (foldl And NoOp)
 foldOr :: [Logic] -> Logic
 foldOr = simplify . (foldl Or NoOp)
 
-{- Compiler types -}
 
 type Variables = Map.Map String Logic
+
 data Program = Program
              { vars :: Variables
              , stack :: BS.ByteString
@@ -101,3 +103,21 @@ push w = do
 
 compilerError :: (Monad m) => String -> CompilerT m a
 compilerError msg = throwError $ CompilerError msg
+
+data ReplState = ReplState
+               { vals :: Map.Map String Bool
+               , ladder :: String
+               }
+
+newtype ReplT m a =
+  ReplT { runReplT :: StateT ReplState (ReaderT Logic m) a }
+  deriving (Functor, Applicative, Monad, MonadIO,
+            MonadState ReplState, MonadReader Logic)
+
+replize :: (Monad m) => ReplT m a -> ReplState -> Logic -> m a
+replize r s l = do
+  let ms = runReplT r
+      mr = runStateT ms s
+  (a, _) <- runReaderT mr l
+  return a
+  

@@ -19,6 +19,7 @@ library
                        Text.LadderLogic.Compiler.Arduino
                        Text.LadderLogic.Types
                        Text.LadderLogic.Parser
+                       Text.LadderLogic.Repl
   other-modules:       Text.LadderLogic.Types.Internal
   build-depends:       base >= 4.7 && < 5
                      , bytestring
