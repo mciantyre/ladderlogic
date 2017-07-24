@@ -112,7 +112,7 @@ repl = do
           input <- liftIO $ prompt "Ladder>> "
           if input `elem` quits
           then liftIO $ putStrLn "Goodbye!\n"
-          else handleInput input >> repl
+          else handleInput input >> loop
 
 -- | Create an initial REPL state
 makeReplState :: String -> Logic -> ReplState
