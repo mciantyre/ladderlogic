@@ -1,8 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Text.LadderLogic.Repl
-( Repl
-, setInput
+( setInput
 , makeReplState
 , repl
 ) where
@@ -18,26 +18,23 @@ import qualified  Data.Map.Strict as Map
 import            System.IO
 import            Text.Trifecta
 
--- | The REPL executes in an IO context
-type Repl = ReplT IO
-
 -- | Print a string and flush the output
-printString :: String -> IO ()
-printString str = putStr str >> hFlush stdout
+printString :: MonadIO m => String -> m ()
+printString str = liftIO (putStr str) >> liftIO (hFlush stdout)
 
 -- | Display the prompt and receive input
-prompt :: String -> IO String
-prompt p = printString p >> getLine
+prompt :: MonadIO m => String -> m String
+prompt p = printString p >> liftIO getLine
 
 -- | Statements used for quitting the REPL
 quits :: [String]
 quits = ["quit", ":q", "exit"]
 
 -- | An Action accepts a list of arguments and executes in the REPL
-type Action = [String] -> Repl ()
+type Action m = [String] -> ReplT m ()
 
 -- | A mapping of action words to the actual actions
-actions :: [(String, Action)]
+actions :: MonadIO m => [(String, Action m)]
 actions = [ ("true"   , setInput True)
           , ("false"  , setInput False)
           , ("values" , const showValues)
@@ -47,20 +44,21 @@ actions = [ ("true"   , setInput True)
           ]
  
 -- | Display possible actions
-showActions :: IO ()
-showActions = putStrLn $ "Possible actions are " ++ actionWords
-  where actionWords =  let acts = map fst actions
-                       in intercalate ", " acts
+showActions :: forall m. MonadIO m => m ()
+showActions = liftIO $ putStrLn ("Possible actions are " ++ actionWords)
+  where actionWords :: String
+        actionWords = let acts = fmap fst (actions :: [(String, Action m)])
+                      in intercalate ", " acts
 
 -- | Display a help message
-showHelp :: Repl ()
+showHelp :: MonadIO m => ReplT m ()
 showHelp = do
   liftIO $ putStrLn "A LadderLogic REPL"
   liftIO showActions
   liftIO $ putStrLn $ "To exit, type one of " ++ intercalate ", " quits
   
 -- | Set the input(s) to the provided value
-setInput :: Bool -> Action
+setInput :: MonadIO m => Bool -> Action m
 setInput _ [] = return ()
 setInput b (s:ss) = do
   ts <- gets types
@@ -72,7 +70,7 @@ setInput b (s:ss) = do
     _               -> liftIO $ putStrLn $ "Not a variable: " ++ s
 
 -- | Show the current values of the REPL
-showValues :: Repl ()
+showValues :: MonadIO m => ReplT m ()
 showValues = do
   updateValues
   vs <- gets vals
@@ -81,19 +79,19 @@ showValues = do
   liftIO $ forM_ (map show (Map.elems tvs)) putStrLn
 
 -- | Display the ladder from which the REPL derives
-showLadder :: Repl ()
+showLadder :: MonadIO m => ReplT m ()
 showLadder = do
   l <- gets ladder
   liftIO $ putStrLn l
 
 -- | Display the logic of the program
-showLogic :: Repl ()
+showLogic :: MonadIO m => ReplT m ()
 showLogic = do
   l <- ask
   liftIO $ putStrLn (show l)
 
 -- | Lookup an action based on the input
-handleInput :: String -> Repl ()
+handleInput :: MonadIO m => String -> ReplT m ()
 handleInput input = do
   if null input
   then return ()
@@ -104,7 +102,7 @@ handleInput input = do
       Nothing     -> liftIO $ putStrLn ("Unknown command: " ++ w) >> showActions
 
 -- | The REPL loops until quit
-repl :: Repl ()
+repl :: MonadIO m => ReplT m ()
 repl = do
   showHelp
   loop
@@ -128,7 +126,7 @@ makeReplState s l =
                         Or l r      -> recurse l f (recurse r f m)
 
 -- | Update the output tags based on the input tags
-updateValues :: Repl ()
+updateValues :: MonadIO m => ReplT m ()
 updateValues = do
   vs <- gets vals
   ts <- gets types
