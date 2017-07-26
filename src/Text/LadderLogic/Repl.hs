@@ -66,8 +66,12 @@ setInput b (s:ss) = do
   case Map.lookup s ts of
     Just (Input _)  ->
       modify (\rs -> rs { vals = Map.insert s b vs } ) >> setInput b ss
-    Just (Output _) -> liftIO $ putStrLn $ "Cannot mutate output " ++ s
-    _               -> liftIO $ putStrLn $ "Not a variable: " ++ s
+    Just (Output _) -> skipWithMsg $ "Cannot mutate output " ++ s
+    _               -> skipWithMsg $ "Not a variable: " ++ s
+  where
+    skipWithMsg msg = do
+      liftIO $ putStrLn msg
+      setInput b ss
 
 -- | Show the current values of the REPL
 showValues :: MonadIO m => ReplT m ()
