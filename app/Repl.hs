@@ -22,5 +22,6 @@ load path = do
   contents <- readFile path
   case parseString parseLadder mempty contents of
     Failure err -> putStrLn $ "Error parsing file: " ++ (show err)
-    Success (logic:_) ->
+    Success (logic:_) -> do
+      putStrLn $ "Loaded " ++ path ++ "..."
       replize repl (makeReplState contents logic) logic
