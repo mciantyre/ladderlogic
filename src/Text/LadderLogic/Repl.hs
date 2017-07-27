@@ -66,8 +66,7 @@ setInput :: MonadIO m => Bool -> Action m
 setInput _ [] = return ()
 setInput b (s:ss) = do
   vs <- gets vals
-  lgic <- asks replLogic
-  let ts = logicToLogicTypes lgic
+  ts <- asks (logicToLogicTypes . replLogic)
   case Map.lookup s ts of
     Just (Input _)  ->
       modify (\rs -> rs { vals = Map.insert s b vs } ) >> setInput b ss
@@ -83,9 +82,8 @@ showValues :: MonadIO m => ReplT m ()
 showValues = do
   updateValues
   vs <- gets vals
-  lgic <- asks replLogic
-  let ts = logicToLogicTypes lgic
-      tvs = Map.intersectionWith (,) ts vs  
+  ts <- asks (logicToLogicTypes . replLogic)
+  let tvs = Map.intersectionWith (,) ts vs  
   liftIO $ forM_ (map show (Map.elems tvs)) putStrLn
 
 -- | Display the ladder from which the REPL derives
@@ -126,13 +124,15 @@ repl = do
 makeReplState :: Logic -> ReplState
 makeReplState lgic = ReplState (logicToInitialValues lgic)
 
+-- | Make a ReplEnv
 makeReplEnv :: String -> Logic -> ReplEnv
 makeReplEnv = ReplEnv
 
-logicToMapUsing :: (Logic -> a)
-                -> Map.Map String a
-                -> Logic
-                -> Map.Map String a
+-- | Convert a logic into a map of Input / Output designations
+logicToMapUsing :: (Logic -> a)       -- ^ A transforming function
+                -> Map.Map String a   -- ^ An initial map
+                -> Logic              -- ^ The logic to put into the map
+                -> Map.Map String a   
 logicToMapUsing f m lgic =
   case lgic of
     NoOp        -> m
@@ -142,9 +142,11 @@ logicToMapUsing f m lgic =
     And l r     -> logicToMapUsing f (logicToMapUsing f m r) l
     Or l r      -> logicToMapUsing f (logicToMapUsing f m r) l
 
+-- | Create a map with all values initially set to False
 logicToInitialValues :: Logic -> Map.Map String Bool
 logicToInitialValues = logicToMapUsing (const False) Map.empty
 
+-- | Create a map with the keys mapping to the Input / Output Logic type
 logicToLogicTypes :: Logic -> Map.Map String Logic
 logicToLogicTypes = logicToMapUsing id Map.empty
 
@@ -158,6 +160,7 @@ updateValues = do
   where outputs l = case l of Output _ -> True
                               _        -> False
 
+-- | Pure implementation of updateValues
 updateOutputs :: Logic -> Map.Map String Bool -> Map.Map String Bool
 updateOutputs lgic vs =
   let ts = logicToLogicTypes lgic
