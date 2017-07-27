@@ -110,20 +110,23 @@ compilerError :: (Monad m) => String -> CompilerT m a
 compilerError msg = throwError $ CompilerError msg
 
 -- | The values maintained in the REPL
-data ReplState = ReplState
-               { vals :: Map.Map String Bool
-               , ladder :: String
-               }
+data ReplState = ReplState { vals :: Map.Map String Bool }
+
+-- | The read-only values available to the REPL
+data ReplEnv = ReplEnv
+             { replLadder :: String
+             , replLogic :: Logic
+             }
 
 -- | The REPL type is an interactive environment for manipulating a ladder
 -- logic program.
 newtype ReplT m a =
-  ReplT { runReplT :: StateT ReplState (ReaderT Logic m) a }
+  ReplT { runReplT :: StateT ReplState (ReaderT ReplEnv m) a }
   deriving (Functor, Applicative, Monad, MonadIO,
-            MonadState ReplState, MonadReader Logic)
+            MonadState ReplState, MonadReader ReplEnv)
 
 -- | Run a REPL type with an initial REPL state. Based on the provided Logic
-replize :: (Monad m) => ReplT m a -> ReplState -> Logic -> m a
+replize :: (Monad m) => ReplT m a -> ReplState -> ReplEnv -> m a
 replize r s l = do
   let ms = runReplT r
       mr = runStateT ms s

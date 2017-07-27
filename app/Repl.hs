@@ -24,4 +24,4 @@ load path = do
     Failure err -> putStrLn $ "Error parsing file: " ++ (show err)
     Success (logic:_) -> do
       putStrLn $ "Loaded " ++ path ++ "..."
-      replize repl (makeReplState contents logic) logic
+      replize repl (makeReplState logic) (makeReplEnv contents logic)

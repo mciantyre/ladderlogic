@@ -4,6 +4,7 @@
 module Text.LadderLogic.Repl
 ( setInput
 , makeReplState
+, makeReplEnv
 , repl
 , updateOutputs
 , logicToLogicTypes
@@ -65,7 +66,7 @@ setInput :: MonadIO m => Bool -> Action m
 setInput _ [] = return ()
 setInput b (s:ss) = do
   vs <- gets vals
-  lgic <- ask
+  lgic <- asks replLogic
   let ts = logicToLogicTypes lgic
   case Map.lookup s ts of
     Just (Input _)  ->
@@ -82,7 +83,7 @@ showValues :: MonadIO m => ReplT m ()
 showValues = do
   updateValues
   vs <- gets vals
-  lgic <- ask
+  lgic <- asks replLogic
   let ts = logicToLogicTypes lgic
       tvs = Map.intersectionWith (,) ts vs  
   liftIO $ forM_ (map show (Map.elems tvs)) putStrLn
@@ -90,13 +91,13 @@ showValues = do
 -- | Display the ladder from which the REPL derives
 showLadder :: MonadIO m => ReplT m ()
 showLadder = do
-  l <- gets ladder
+  l <- asks replLadder
   liftIO $ putStrLn l
 
 -- | Display the logic of the program
 showLogic :: MonadIO m => ReplT m ()
 showLogic = do
-  l <- ask
+  l <- asks replLogic
   liftIO $ putStrLn (show l)
 
 -- | Lookup an action based on the input
@@ -122,9 +123,11 @@ repl = do
           else handleInput input >> loop
 
 -- | Create an initial REPL state
-makeReplState :: String -> Logic -> ReplState
-makeReplState s lgic =
-  ReplState (logicToInitialValues lgic) s
+makeReplState :: Logic -> ReplState
+makeReplState lgic = ReplState (logicToInitialValues lgic)
+
+makeReplEnv :: String -> Logic -> ReplEnv
+makeReplEnv = ReplEnv
 
 logicToMapUsing :: (Logic -> a)
                 -> Map.Map String a
@@ -149,7 +152,7 @@ logicToLogicTypes = logicToMapUsing id Map.empty
 updateValues :: MonadIO m => ReplT m ()
 updateValues = do
   vs <- gets vals
-  lgic <- ask
+  lgic <- asks replLogic
   let vs' = updateOutputs lgic vs
   modify (\rs -> rs { vals = vs' } )
   where outputs l = case l of Output _ -> True
