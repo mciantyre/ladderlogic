@@ -112,7 +112,6 @@ compilerError msg = throwError $ CompilerError msg
 -- | The values maintained in the REPL
 data ReplState = ReplState
                { vals :: Map.Map String Bool
-               , types :: Map.Map String Logic
                , ladder :: String
                }
 

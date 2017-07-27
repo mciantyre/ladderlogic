@@ -5,6 +5,9 @@ module Text.LadderLogic.Repl
 ( setInput
 , makeReplState
 , repl
+, updateOutputs
+, logicToLogicTypes
+, logicToInitialValues
 ) where
 
 import            Text.LadderLogic.Parser
@@ -61,8 +64,9 @@ showHelp = do
 setInput :: MonadIO m => Bool -> Action m
 setInput _ [] = return ()
 setInput b (s:ss) = do
-  ts <- gets types
   vs <- gets vals
+  lgic <- ask
+  let ts = logicToLogicTypes lgic
   case Map.lookup s ts of
     Just (Input _)  ->
       modify (\rs -> rs { vals = Map.insert s b vs } ) >> setInput b ss
@@ -78,8 +82,9 @@ showValues :: MonadIO m => ReplT m ()
 showValues = do
   updateValues
   vs <- gets vals
-  ts <- gets types
-  let tvs = Map.intersectionWith (,) ts vs  
+  lgic <- ask
+  let ts = logicToLogicTypes lgic
+      tvs = Map.intersectionWith (,) ts vs  
   liftIO $ forM_ (map show (Map.elems tvs)) putStrLn
 
 -- | Display the ladder from which the REPL derives
@@ -118,28 +123,45 @@ repl = do
 
 -- | Create an initial REPL state
 makeReplState :: String -> Logic -> ReplState
-makeReplState s l =
-  ReplState (recurse l (const False) Map.empty) (recurse l id Map.empty) s
-  where recurse :: Logic -> (Logic -> a) -> Map.Map String a -> Map.Map String a
-        recurse l f m = case l of
-                        NoOp        -> m
-                        Input i     -> Map.insert i (f l) m
-                        Output o    -> Map.insert o (f l) m
-                        Not n       -> recurse n f m
-                        And l r     -> recurse l f (recurse r f m)
-                        Or l r      -> recurse l f (recurse r f m)
+makeReplState s lgic =
+  ReplState (logicToInitialValues lgic) s
+
+logicToMapUsing :: (Logic -> a)
+                -> Map.Map String a
+                -> Logic
+                -> Map.Map String a
+logicToMapUsing f m lgic =
+  case lgic of
+    NoOp        -> m
+    Input i     -> Map.insert i (f lgic) m
+    Output o    -> Map.insert o (f lgic) m
+    Not n       -> logicToMapUsing f m n
+    And l r     -> logicToMapUsing f (logicToMapUsing f m r) l
+    Or l r      -> logicToMapUsing f (logicToMapUsing f m r) l
+
+logicToInitialValues :: Logic -> Map.Map String Bool
+logicToInitialValues = logicToMapUsing (const False) Map.empty
+
+logicToLogicTypes :: Logic -> Map.Map String Logic
+logicToLogicTypes = logicToMapUsing id Map.empty
 
 -- | Update the output tags based on the input tags
 updateValues :: MonadIO m => ReplT m ()
 updateValues = do
   vs <- gets vals
-  ts <- gets types
-  l <- ask
-  let outs = Map.filter outputs ts
-      outvs = Map.intersection vs outs
-      outvs' = Map.map (const $ evaluate l vs) outvs
-      vs' = Map.union outvs' vs
+  lgic <- ask
+  let vs' = updateOutputs lgic vs
   modify (\rs -> rs { vals = vs' } )
+  where outputs l = case l of Output _ -> True
+                              _        -> False
+
+updateOutputs :: Logic -> Map.Map String Bool -> Map.Map String Bool
+updateOutputs lgic vs =
+  let ts = logicToLogicTypes lgic
+      outs = Map.filter outputs ts
+      outvs = Map.intersection vs outs
+      outvs' = Map.map (const $ evaluate lgic vs) outvs
+  in Map.union outvs' vs
   where outputs l = case l of Output _ -> True
                               _        -> False
 
@@ -147,8 +169,8 @@ updateValues = do
 evaluate :: Logic -> Map.Map String Bool -> Bool
 evaluate (And l (Output _)) m = evaluate l m
 evaluate (And (Output _) r) m = evaluate r m
-evaluate log m =
-  case log of
+evaluate lgic m =
+  case lgic of
     And l r   -> (evaluate l m) && (evaluate r m)
     Or l r    -> (evaluate l m) || (evaluate r m)
     Not n     -> not (evaluate n m)
