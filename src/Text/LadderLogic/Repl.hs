@@ -157,8 +157,6 @@ updateValues = do
   lgic <- asks replLogic
   let vs' = updateOutputs lgic vs
   modify (\rs -> rs { vals = vs' } )
-  where outputs l = case l of Output _ -> True
-                              _        -> False
 
 -- | Pure implementation of updateValues
 updateOutputs :: Logic -> Map.Map String Bool -> Map.Map String Bool

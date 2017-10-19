@@ -66,8 +66,6 @@ fork = char '+'
 borders :: Parser Char
 borders = char '#' *> char '#'
 
-wires = many wire
-
 tags :: Parser Logic
 tags = some iotags >>= (return . foldAnd . catMaybes)
   where iotags = some wire *> optional (input <|> output)

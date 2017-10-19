@@ -1,0 +1,5 @@
+!!   This is a line of comments    !!
+!!  The file is called demo.ladder !!
+##---[/A]--+---[B]---------+--(D)--##
+##         |               |       ##
+##         +----[/C]-------+       ##
