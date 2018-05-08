@@ -7,7 +7,7 @@ license:             Apache
 license-file:        LICENSE
 author:              Ian McIntyre
 maintainer:          me@ianpmcintyre.com
-copyright:           2017 Ian McIntyre
+copyright:           2017, 2018 Ian McIntyre
 category:            Text
 build-type:          Simple
 extra-source-files:  README.md
